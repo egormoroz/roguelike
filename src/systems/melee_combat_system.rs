@@ -1,3 +1,4 @@
+use std::io::Write;
 use specs::prelude::*;
 use crate::{comp::*, util::GameLog};
 
@@ -29,19 +30,16 @@ impl<'a> System<'a> for MeleeCombatSystem {
             let target_name = names.get(wants_melee.target).unwrap();
             let damage = stats.power - target_stats.defense;
             
+            let mut entry = log.new_entry();
             if damage > 0 {
                 SufferDamage::new_damage(
                     &mut inflict_damage, 
                     wants_melee.target, 
                     damage
                 );
-                log.entries.push(format!(
-                    "{} hits {} for {} hp.", name.0, target_name.0, damage
-                ));
+                write!(entry, "{} hits {} for {} hp.", name.0, target_name.0, damage).unwrap();
             } else {
-                log.entries.push(format!(
-                    "{} is unable to hurt {}.", name.0, target_name.0
-                ));
+                write!(entry, "{} is unable to hurt {}.", name.0, target_name.0).unwrap();
             }
         }
 

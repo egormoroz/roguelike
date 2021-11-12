@@ -1,4 +1,5 @@
- use macroquad::prelude::IVec2;
+use std::io::Write;
+use macroquad::prelude::IVec2;
 use specs::{prelude::*, saveload::{SimpleMarker, SimpleMarkerAllocator}};
 
 use crate::{
@@ -23,6 +24,7 @@ pub enum RunState {
     SaveGame,
     UI(UIState),
     Quit,
+    NextLevel,
 }
 
 pub struct State {
@@ -34,6 +36,9 @@ pub struct State {
     dirty: bool,
 }
 
+const MAP_WIDTH: i32 = 80;
+const MAP_HEIGHT: i32 = 43;
+
 impl State {
     pub fn new(screen: Screen) -> Self {
         let mut ecs = World::new();
@@ -44,9 +49,11 @@ impl State {
 
         ecs.insert(RunState::UI(UIState::MainMenu(MainMenuSelection::NewGame)));
 
-        ecs.insert(GameLog::new().with("Hello world".to_owned()));
+        let mut log = GameLog::new();
+        write!(log.new_entry(), "Hello world").unwrap();
+        ecs.insert(log);
 
-        let map = Map::new(80, 43);
+        let map = Map::new(MAP_WIDTH, MAP_HEIGHT, 1);
         let (x, y) = map.rooms()[0].center();
         ecs.insert(IVec2::new(x, y));
 
@@ -54,7 +61,7 @@ impl State {
         ecs.insert(player_entity);
 
         for room in map.rooms().iter().skip(1) {
-            spawner::fill_room(&mut ecs, room);
+            spawner::fill_room(&mut ecs, room, 1);
         }
 
         ecs.insert(map);
@@ -139,6 +146,10 @@ impl State {
             },
             UI(state) => gui::handle_state(state, &mut self.ecs, &mut self.screen),
             Quit => Quit,
+            NextLevel => {
+                self.goto_next_level();
+                PreRun
+            }
         };
         *self.ecs.write_resource::<RunState>() = new_state;
 
@@ -148,12 +159,63 @@ impl State {
 
         new_state != Quit
     }
+
+    fn goto_next_level(&mut self) {
+        let mut to_delete = vec![];
+        let player_entity = *self.ecs.fetch::<Entity>();
+        {
+            let entities = self.ecs.entities();
+            let players = self.ecs.read_storage::<Player>();
+            let in_backpack = self.ecs.read_storage::<InBackpack>();
+
+
+            for e in entities.join() {
+                if players.contains(player_entity) { continue }
+                if let Some(bp) = in_backpack.get(e) {
+                    if bp.owner == player_entity { continue }
+                }
+                to_delete.push(e);
+            }
+        }
+
+        self.ecs.delete_entities(&to_delete).expect("failed to delete entities");
+
+
+        let depth = self.ecs.fetch::<Map>().depth() + 1;
+        let new_map = Map::new(MAP_WIDTH, MAP_HEIGHT, depth);
+        for room in new_map.rooms().iter().skip(1) {
+            spawner::fill_room(&mut self.ecs, room, depth);
+        }
+
+        let (plx, ply) = new_map.rooms()[0].center();
+        self.ecs.insert(IVec2::new(plx, ply));
+        self.ecs.write_storage::<Position>()
+            .insert(player_entity, Position { x: plx, y: ply })
+            .expect("failed to insert player position");
+        self.ecs.write_storage::<Viewshed>()
+            .get_mut(player_entity)
+            .expect("player doesn't have Viewshed??")
+            .dirty = true;
+
+        
+        let mut stats = self.ecs.write_storage::<CombatStats>();
+        let stats = stats.get_mut(player_entity)
+            .expect("player doesn't have CombatStats??");
+        stats.hp = stats.max_hp.min(stats.hp + stats.max_hp / 2);
+
+        *self.ecs.fetch_mut::<Map>() = new_map;
+        self.dirty = true;
+
+        write!(self.ecs.fetch_mut::<GameLog>().new_entry(),
+            "You descend to the next level, and take a moment to heal.").unwrap();
+    }
 }
 
 fn draw_map(map: &Map, s: &mut Screen) {
     let bg = BLACK;
     let floor_fg = [0.5, 0.5, 0.5, 1.0];
     let wall_fg = [0.0, 1.0, 0.0, 1.0];
+    let stairs_fg = VIOLET;
 
     let bounds = map.bounds();
 
@@ -165,6 +227,7 @@ fn draw_map(map: &Map, s: &mut Screen) {
             let (mut fg, glyph) = match map.tile(x, y) {
                 TileType::Floor => (floor_fg, to_cp437('.')),
                 TileType::Wall => (wall_fg, to_cp437('#')),
+                TileType::DownStairs => (stairs_fg, to_cp437('>'))
             };
             
             if !tile_status.visible { fg = greyscale(fg); }

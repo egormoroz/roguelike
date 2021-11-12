@@ -15,6 +15,7 @@ use super::{
 pub enum TileType {
     Floor,
     Wall,
+    DownStairs,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -30,6 +31,7 @@ pub struct Map {
     tiles: Grid<TileType>,
     tile_flags: Grid<TileFlags>,
     rooms: Vec<IRect>,
+    depth: i32,
 
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
@@ -37,12 +39,13 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new(width: i32, height: i32) -> Self {
+    pub fn new(width: i32, height: i32, depth: i32) -> Self {
         let mut inst = Self {
             tiles: Grid::new(width, height, TileType::Wall),
             tile_flags: Grid::new(width, height, TileFlags::default()),
             rooms: vec![],
             tile_content: Grid::new(width, height, vec![]),
+            depth,
         };
 
         let rooms = vec![
@@ -63,6 +66,9 @@ impl Map {
             let (c1, c2) = (r1.center(), r2.center());
             inst.create_corridor(c1.0, c1.1, c2.0, c2.1);
         }
+
+        let (x, y) = rooms[1].center();
+        inst.set_tile(x, y, TileType::DownStairs);
 
         inst.rooms = rooms;
         inst.populate_blocked();
@@ -141,6 +147,10 @@ impl Map {
 
     pub fn tile_content_mut(&mut self, x: i32, y: i32) -> &mut Vec<Entity> {
         self.tile_content.get_mut(x, y)
+    }
+
+    pub fn depth(&self) -> i32 {
+        self.depth
     }
     
     fn is_exit_valid(&self, x: i32, y: i32) -> bool {

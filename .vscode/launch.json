@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'minirltk'",
+            "name": "Debug executable 'roguelike'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=minirltk",
-                    "--package=minirltk"
+                    "--bin=roguelike",
+                    "--package=roguelike"
                 ],
                 "filter": {
-                    "name": "minirltk",
+                    "name": "roguelike",
                     "kind": "bin"
                 }
             },
@@ -25,16 +25,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'minirltk'",
+            "name": "Debug unit tests in executable 'roguelike'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=minirltk",
-                    "--package=minirltk"
+                    "--bin=roguelike",
+                    "--package=roguelike"
                 ],
                 "filter": {
-                    "name": "minirltk",
+                    "name": "roguelike",
                     "kind": "bin"
                 }
             },

@@ -18,7 +18,8 @@ use crate::{
         colors::*,
         to_cp437,
         Glyph
-    }
+    },
+    map::Map,
 };
 
 
@@ -30,22 +31,22 @@ pub enum ItemMenuResult {
 }
 
 pub fn draw_ui(ecs: &World, s: &mut Screen) {
-    s.draw_box(IRect::new(0, 43, 80, 7), WHITE, BLACK);
-
+    let depth = ecs.fetch::<Map>().depth();
     let players = ecs.read_storage::<Player>();
     let stats = ecs.read_storage::<CombatStats>();
-
     let (stats, _) = (&stats, &players).join().next().unwrap();
+
+    s.draw_box(IRect::new(0, 43, 80, 7), WHITE, BLACK);
+
+    s.draw_text(2, 43, YELLOW, BLACK, &format!("Depth: {}", depth));
     s.draw_text(12, 43, YELLOW, BLACK,
         &format!("HP: {} / {}", stats.hp, stats.max_hp));
     s.draw_bar_horizontal(28, 43, 51, stats.hp, 
         stats.max_hp, RED, BLACK);
 
     let log = ecs.fetch::<GameLog>();
-    let max_lines = 5;
-    let lines_to_show = max_lines.min(log.entries.len());
     let mut y = 44;
-    for entry in &log.entries[log.entries.len() - lines_to_show..] {
+    for entry in log.last_entries(5) {
         s.draw_text(2, y, WHITE, [0.0; 4], entry);
         y += 1;
     }

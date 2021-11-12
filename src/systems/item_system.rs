@@ -1,3 +1,4 @@
+use std::io::Write;
 use macroquad::prelude::IVec2;
 use smallvec::SmallVec;
 use specs::prelude::*;
@@ -32,7 +33,8 @@ impl<'a> System<'a> for InventorySystem {
                 .expect("failed to insert backpack entry");
             
             if entity == *player_entity {
-                log.entries.push(format!("You pick up the {}.", named.get(pickup.item).unwrap().0));
+                write!(log.new_entry(), "You pick up the {}.", 
+                    named.get(pickup.item).unwrap().0).unwrap();
             }
         }
 
@@ -90,8 +92,8 @@ impl<'a> System<'a> for ItemUseSystem {
                             if user == *player_entity {
                                 let victim_name = &named.get(*victim).unwrap().0;
                                 let item_name = &named.get(useitem.item).unwrap().0;
-                                log.entries.push(format!("You use {} on {}, inflicting {} damage.", 
-                                    item_name, victim_name, dmg.damage))
+                                write!(log.new_entry(), "You use {} on {}, inflicting {} damage.", 
+                                    item_name, victim_name, dmg.damage).unwrap()
                             }
                             used = true;
                         }
@@ -101,8 +103,8 @@ impl<'a> System<'a> for ItemUseSystem {
                             if user == *player_entity {
                                 let victim_name = &named.get(*victim).unwrap().0;
                                 let item_name = &named.get(useitem.item).unwrap().0;
-                                log.entries.push(format!("You use {} on {}, confusing them.",
-                                    item_name, victim_name));
+                                write!(log.new_entry(), "You use {} on {}, confusing them.",
+                                    item_name, victim_name).unwrap();
                             }
                             used = true;
                         }
@@ -113,7 +115,8 @@ impl<'a> System<'a> for ItemUseSystem {
                 stats.hp = stats.max_hp.min(stats.hp + healer.heal_amount);
                 if user == *player_entity {
                     let name = &named.get(useitem.item).unwrap().0;
-                    log.entries.push(format!("You drink the {}, healing {} hp.", name, healer.heal_amount));
+                    write!(log.new_entry(), "You drink the {}, healing {} hp.", 
+                        name, healer.heal_amount).unwrap();
                 }
             }
 
@@ -149,8 +152,8 @@ impl<'a> System<'a> for ItemDropSystem {
             backpacked.remove(to_drop.item);
 
             if entity == *player_entity {
-                log.entries.push(format!("You drop the {}.", 
-                    named.get(entity).unwrap().0));
+                write!(log.new_entry(), "You drop the {}.", 
+                    named.get(entity).unwrap().0).unwrap();
             }
         }
 

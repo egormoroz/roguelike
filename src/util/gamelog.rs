@@ -1,5 +1,8 @@
+use std::io::BufWriter;
+
+pub const MAX_ENTRY_LEN: usize = 128;
 pub struct GameLog {
-    pub entries: Vec<String>,
+    entries: Vec<[u8; MAX_ENTRY_LEN]>,
 }
 
 impl GameLog {
@@ -7,8 +10,14 @@ impl GameLog {
         Self { entries: vec![] }
     }
 
-    pub fn with(mut self, s: String) -> Self {
-        self.entries.push(s);
-        self
+    pub fn new_entry(&mut self) -> BufWriter<&mut [u8]> {
+        self.entries.push([0; MAX_ENTRY_LEN]);
+        BufWriter::new(&mut self.entries.last_mut().unwrap()[..])
+    }
+
+    pub fn last_entries(&self, n: usize) -> impl Iterator<Item = &str> {
+        let idx = self.entries.len() - n.min(self.entries.len());
+        self.entries[idx..].iter()
+            .map(|buf| std::str::from_utf8(buf).unwrap())
     }
 }

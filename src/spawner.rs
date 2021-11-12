@@ -36,7 +36,7 @@ pub fn random_monster(ecs: &mut World, x: i32, y: i32) {
     }
 }
 
-pub fn fill_room(ecs: &mut World, room: &IRect) {
+pub fn fill_room(ecs: &mut World, room: &IRect, _depth: i32) {
     let mut monster_spawn_points = SmallVec::<[(i32, i32); MAX_MONSTERS as usize]>::new();
     let mut item_spawn_points = SmallVec::<[(i32, i32); MAX_ITEMS as usize]>::new();
     let mut rng = thread_rng();

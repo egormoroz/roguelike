@@ -1,7 +1,7 @@
-use std::fmt::Write;
 use specs::prelude::*;
 use macroquad::prelude::IVec2;
 use smallvec::{smallvec, SmallVec};
+use std::io::Write;
 
 use super::*;
 use crate::{
@@ -62,19 +62,20 @@ pub fn handle_state(state: UIState, ecs: &mut World, s: &mut Screen) -> RunState
                         items.push(&name.0);
                     }
                 }
-                log.entries.push(match items.len() {
-                    0 => format!("This is a {:?}.", map.tile(epos.x, epos.y)),
-                    1 => format!("There is {}.", items[0]),
-                    n => {
-                        let mut buf = format!("There are {} entities: {}", n, items[0]);
-                        for name in &items[1..] {
-                            write!(buf, ", {}", name).unwrap();
-                        }
-                        buf.push('.');
 
-                        buf
+                let mut entry = log.new_entry();
+                match items.len() {
+                    0 => write!(entry, "This is a {:?}.", map.tile(epos.x, epos.y)).unwrap(),
+                    1 => write!(entry, "There is {}.", items[0]).unwrap(),
+                    n => {
+
+                        write!(entry, "There are {} entities: {}", n, items[0]).unwrap();
+                        for name in &items[1..] {
+                            write!(entry, ", {}", name).unwrap();
+                        }
+                        write!(entry, ".").unwrap();
                     }
-                });
+                };
 
                 RunState::AwaitingInput                    
             },

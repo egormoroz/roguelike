@@ -1,9 +1,10 @@
+use std::io::Write;
 use macroquad::prelude::*;
 use specs::prelude::*;
 use crate::{
     comp::*, 
     util::GameLog, 
-    map::Map, 
+    map::{Map, TileType}, 
     state::RunState,
     gui::UIState,
 };
@@ -69,8 +70,9 @@ pub fn handle_input(ecs: &mut World) -> RunState {
 
             //Misc
             KeyCode::X => RunState::UI(UIState::Examine(plp)),
-            KeyCode::Period => RunState::PlayerTurn,
+            KeyCode::Space => RunState::PlayerTurn,
             KeyCode::Escape => RunState::SaveGame,
+            KeyCode::Period => try_go_deeper(ecs, plp),
             _ => RunState::AwaitingInput,
         }
     } else {
@@ -100,8 +102,18 @@ fn get_item(ecs: &mut World) -> RunState {
             .expect("unable to insert WantToPickupItem");
         RunState::PlayerTurn
     } else {
-        log.entries.push("There is nothing here to pick up".to_owned());
+        write!(log.new_entry(), "There is nothing here to pick up").unwrap();
         RunState::AwaitingInput
     }
 
+}
+
+fn try_go_deeper(ecs: &World, plp: IVec2) -> RunState {
+    if let TileType::DownStairs = ecs.fetch::<Map>().tile(plp.x, plp.y) {
+        RunState::NextLevel
+    } else {
+        write!(ecs.fetch_mut::<GameLog>().new_entry(),
+            "There is no way down from here.").unwrap();
+        RunState::AwaitingInput
+    }
 }

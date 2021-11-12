@@ -2,7 +2,7 @@ use phf::phf_map;
 pub type Glyph = u8;
 
 static CHARS: phf::Map<char, u8> = phf_map! {
-    '☺' => 1, '☻' => 2, '♥' => 3, '♦' => 4, '♣' => 5,
+    '\0' => 0, '☺' => 1, '☻' => 2, '♥' => 3, '♦' => 4, '♣' => 5,
     '♠' => 6, '•' => 7, '◘' => 8, '○' => 9, '◙' => 10,
     '♂' => 11, '♀' => 12, '♪' => 13, '♫' => 14, '☼' => 15,
     '►' => 16, '◄' => 17, '↕' => 18, '‼' => 19, '¶' => 20,
@@ -56,5 +56,8 @@ static CHARS: phf::Map<char, u8> = phf_map! {
 };
 
 pub fn to_cp437(ch: char) -> Glyph {
-    *CHARS.get(&ch).expect("given char is not cp437")
+    match CHARS.get(&ch) {
+        Some(glyph) => *glyph,
+        None => panic!("{} is not cp437", ch)
+    }
 }
