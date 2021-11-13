@@ -36,6 +36,9 @@ pub fn register_all_components(ecs: &mut World) {
     ecs.register::<InflictsDamage>();
     ecs.register::<AreaOfEffect>();
     ecs.register::<Confusion>();
+    ecs.register::<Equippable>();
+    ecs.register::<Equipped>();
+    ecs.register::<CombatBonuses>();
 
     ecs.register::<SimpleMarker<SerializeMe>>();
 }
@@ -144,10 +147,17 @@ pub struct WantsToPickupItem {
     pub item: Entity,
 }
 
+
+#[derive(Serialize, Deserialize, Clone, Copy)]
+pub enum UseTarget {
+    User,
+    Point((i32, i32))
+}
+
 #[derive(Component, ConvertSaveload, Clone, Copy)]
 pub struct WantsToUseItem {
     pub item: Entity,
-    pub target: Option<(i32, i32)>,
+    pub target: UseTarget,
 }
 
 #[derive(Component, ConvertSaveload, Clone, Copy)]
@@ -176,6 +186,26 @@ pub struct AreaOfEffect {
 #[derive(Component, Clone, Copy, ConvertSaveload)]
 pub struct Confusion {
     pub turns: i32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum EquipmentSlot { MainHand, OffHand }
+
+#[derive(Component, ConvertSaveload, Clone, Copy)]
+pub struct Equippable {
+    pub slot: EquipmentSlot,
+}
+
+#[derive(Component, ConvertSaveload, Clone, Copy)]
+pub struct Equipped {
+    pub owner: Entity,
+    pub slot: EquipmentSlot,
+}
+
+#[derive(Component, ConvertSaveload, Clone, Copy)]
+pub struct CombatBonuses {
+    pub power: i32,
+    pub defense: i32,
 }
 
 

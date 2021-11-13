@@ -11,6 +11,8 @@ impl<'a> System<'a> for MeleeCombatSystem {
         Entities<'a>,
         ReadStorage<'a, Named>,
         ReadStorage<'a, CombatStats>,
+        ReadStorage<'a, CombatBonuses>,
+        ReadStorage<'a, Equipped>,
         WriteExpect<'a, GameLog>,
         WriteStorage<'a, WantsToMelee>,
         WriteStorage<'a, SufferDamage>
@@ -18,17 +20,28 @@ impl<'a> System<'a> for MeleeCombatSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, names, combat_stats, 
-            mut log, mut wants_melee, mut inflict_damage) = data;
+            combat_bonuses, equipped, mut log, 
+            mut wants_melee, mut inflict_damage) = data;
 
-        for (_entity, name, stats, wants_melee) 
+        for (attacker, name, stats, wants_melee) 
             in (&entities, &names, &combat_stats, &mut wants_melee).join() 
         {
             if stats.hp <= 0 { continue; }
 
+            let (mut offensive_bonus, mut defensive_bonus) = (0, 0);
+            for (bonuses, equipped) in (&combat_bonuses, &equipped).join() {
+                if equipped.owner == attacker {
+                    offensive_bonus += bonuses.power;
+                } else if equipped.owner == wants_melee.target {
+                    defensive_bonus += bonuses.defense;
+                }
+            }
+
             let target_stats = combat_stats.get(wants_melee.target).unwrap();
             if target_stats.hp <= 0 { continue; }
             let target_name = names.get(wants_melee.target).unwrap();
-            let damage = stats.power - target_stats.defense;
+            let damage = stats.power + offensive_bonus 
+                - (target_stats.defense + defensive_bonus);
             
             let mut entry = log.new_entry();
             if damage > 0 {

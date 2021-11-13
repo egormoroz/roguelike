@@ -32,7 +32,7 @@ pub fn handle_state(state: UIState, ecs: &mut World, s: &mut Screen) -> RunState
                     RunState::UI(Target { item, range: ranged.range, pos: plp })
                 } else {
                     ecs.write_storage::<WantsToUseItem>()
-                        .insert(*ecs.fetch::<Entity>(), WantsToUseItem { item, target: None })
+                        .insert(*ecs.fetch::<Entity>(), WantsToUseItem { item, target: UseTarget::User })
                         .expect("unable to insert intent");
                     RunState::PlayerTurn
                 }
@@ -88,7 +88,7 @@ pub fn handle_state(state: UIState, ecs: &mut World, s: &mut Screen) -> RunState
                     let player = *ecs.fetch::<Entity>();
                     let (x, y) = (pos.x, pos.y);
                     ecs.write_storage::<WantsToUseItem>()
-                        .insert(player, WantsToUseItem { item, target: Some((x, y)) })
+                        .insert(player, WantsToUseItem { item, target: UseTarget::Point((x, y)) })
                         .expect("failed to insert intent");
                     RunState::PlayerTurn                        
                 },

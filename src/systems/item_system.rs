@@ -45,6 +45,7 @@ impl<'a> System<'a> for InventorySystem {
 #[derive(Default)]
 pub struct ItemUseSystem {
     aoe_cache: SmallVec<[(i32, i32); 256]>,
+    target_cache: SmallVec<[Entity; 256]>,
 }
 
 impl<'a> System<'a> for ItemUseSystem {
@@ -59,21 +60,27 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadStorage<'a, InflictsDamage>,
         ReadStorage<'a, Consumable>,
         ReadStorage<'a, AreaOfEffect>,
+        ReadStorage<'a, Equippable>,
         WriteStorage<'a, Confusion>,
         WriteStorage<'a, SufferDamage>,
         WriteStorage<'a, WantsToUseItem>,
         WriteStorage<'a, CombatStats>,
+        WriteStorage<'a, Equipped>,
+        WriteStorage<'a, InBackpack>
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, map, player_entity, mut log, named, 
             healers, inflicts_damage, consumables, aoe, 
-            mut confused, mut suffer_damage, mut wants_use, mut stats) = data;
+            equippable, mut confused, mut suffer_damage, 
+            mut wants_use, mut stats, mut equipped, mut backpacked) = data;
+        let player_entity = *player_entity;
 
         for (user, useitem, stats) in (&entities, &wants_use, &mut stats).join() {
             let mut used = false;
-             
-            if let Some(center) = useitem.target {
+            self.target_cache.clear();
+
+            if let UseTarget::Point(center) = useitem.target {
                 self.aoe_cache.clear();
                 if let Some(aoe) = aoe.get(useitem.item) {
                     compute_fov(IVec2::new(center.0, center.1), aoe.radius, 
@@ -87,37 +94,74 @@ impl<'a> System<'a> for ItemUseSystem {
                 for (x, y) in self.aoe_cache.iter().cloned() {
                     // if !map.bounds().contains(x, y) { continue; }
                     for victim in map.tile_content(x, y) {
-                        if let Some(dmg) = inflicts_damage.get(useitem.item) {
-                            SufferDamage::new_damage(&mut suffer_damage, *victim, dmg.damage);
-                            if user == *player_entity {
-                                let victim_name = &named.get(*victim).unwrap().0;
-                                let item_name = &named.get(useitem.item).unwrap().0;
-                                write!(log.new_entry(), "You use {} on {}, inflicting {} damage.", 
-                                    item_name, victim_name, dmg.damage).unwrap()
-                            }
-                            used = true;
-                        }
-
-                        if let Some(confusion) = confused.get(useitem.item).cloned() {
-                            confused.insert(*victim, confusion).expect("failed to insert confusion");
-                            if user == *player_entity {
-                                let victim_name = &named.get(*victim).unwrap().0;
-                                let item_name = &named.get(useitem.item).unwrap().0;
-                                write!(log.new_entry(), "You use {} on {}, confusing them.",
-                                    item_name, victim_name).unwrap();
-                            }
-                            used = true;
-                        }
+                        self.target_cache.push(*victim);
+                        
                     }
                 }
-            } else if let Some(healer) = healers.get(useitem.item) {
-                used = true;
-                stats.hp = stats.max_hp.min(stats.hp + healer.heal_amount);
-                if user == *player_entity {
-                    let name = &named.get(useitem.item).unwrap().0;
-                    write!(log.new_entry(), "You drink the {}, healing {} hp.", 
-                        name, healer.heal_amount).unwrap();
+            } else if let UseTarget::User = useitem.target {
+                self.target_cache.push(user);
+            }
+
+            for target in self.target_cache.iter() {
+                if let Some(dmg) = inflicts_damage.get(useitem.item) {
+                    SufferDamage::new_damage(&mut suffer_damage, *target, dmg.damage);
+                    if user == player_entity {
+                        let target_name = &named.get(*target).unwrap().0;
+                        let item_name = &named.get(useitem.item).unwrap().0;
+                        write!(log.new_entry(), "You use {} on {}, inflicting {} damage.", 
+                            item_name, target_name, dmg.damage).unwrap()
+                    }
+                    used = true;
                 }
+
+                if let Some(confusion) = confused.get(useitem.item).cloned() {
+                    confused.insert(*target, confusion).expect("failed to insert confusion");
+                    if user == player_entity {
+                        let target_name = &named.get(*target).unwrap().0;
+                        let item_name = &named.get(useitem.item).unwrap().0;
+                        write!(log.new_entry(), "You use {} on {}, confusing them.",
+                            item_name, target_name).unwrap();
+                    }
+                    used = true;
+                }
+
+                if let Some(healer) = healers.get(useitem.item) {
+                    used = true;
+                    stats.hp = stats.max_hp.min(stats.hp + healer.heal_amount);
+                    if user == player_entity {
+                        let name = &named.get(useitem.item).unwrap().0;
+                        write!(log.new_entry(), "You drink the {}, healing {} hp.", 
+                            name, healer.heal_amount).unwrap();
+                    }
+                } 
+            
+                if let Some(Equippable { slot }) = equippable.get(useitem.item) {
+                    let slot = *slot;
+                    let mut to_unequip = SmallVec::<[Entity; 4]>::new();
+                    for (itm, equipped) in (&entities, &equipped).join() {
+                        if equipped.owner == *target /*&& equipped.slot == slot */{
+                            to_unequip.push(itm);
+                            if equipped.owner == player_entity {
+                                let name = &named.get(itm).unwrap().0;
+                                write!(log.new_entry(), "You unequip {}.", name).unwrap();
+                            }
+                        }
+                    }
+
+                    for e in to_unequip {
+                        equipped.remove(e);
+                        backpacked.insert(e, InBackpack { owner: *target })
+                            .expect("failed to insert InBackpack");
+                    }
+
+                    backpacked.remove(useitem.item).expect("failed to remove InBackpack");
+                    equipped.insert(useitem.item, Equipped { owner: *target, slot })
+                        .expect("failed to insert Equipped");
+                    if *target == player_entity {
+                        let name = &named.get(useitem.item).unwrap().0;
+                        write!(log.new_entry(), "You equip {}.", name).unwrap();
+                    }
+                } 
             }
 
             if used && consumables.contains(useitem.item) {

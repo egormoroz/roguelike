@@ -57,6 +57,9 @@ impl State {
         let map = Map::new(MAP_WIDTH, MAP_HEIGHT, 1);
         let (x, y) = map.rooms()[0].center();
         ecs.insert(IVec2::new(x, y));
+        spawner::dagger(&mut ecs, x + 1, y + 1);
+        spawner::shield(&mut ecs, x + 2, y + 2);
+
 
         let player_entity = spawner::player(&mut ecs, x, y);
         ecs.insert(player_entity);
@@ -168,14 +171,17 @@ impl State {
         let player_entity = *self.ecs.fetch::<Entity>();
         {
             let entities = self.ecs.entities();
-            let players = self.ecs.read_storage::<Player>();
             let in_backpack = self.ecs.read_storage::<InBackpack>();
-
+            let equipped = self.ecs.read_storage::<Equipped>();
 
             for e in entities.join() {
-                if players.contains(player_entity) { continue }
+                if e == player_entity { continue }
+
                 if let Some(bp) = in_backpack.get(e) {
                     if bp.owner == player_entity { continue }
+                }
+                if let Some(Equipped { slot: _, owner }) = equipped.get(e) {
+                    if *owner == player_entity { continue }
                 }
                 to_delete.push(e);
             }

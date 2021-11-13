@@ -18,6 +18,8 @@ enum SpawnOption {
     FireballScroll,
     ConfusionScroll,
     MagicMissileScroll,
+    Dagger,
+    Shield,
 }
 
 pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
@@ -82,6 +84,8 @@ impl RoomSpawner {
                 FireballScroll => fireball_scroll(ecs, x, y),
                 ConfusionScroll => confusion_scroll(ecs, x, y),
                 MagicMissileScroll => magic_missile_scroll(ecs, x, y),
+                Dagger => dagger(ecs, x, y),
+                Shield => shield(ecs, x, y),
             }
         }
     }
@@ -97,7 +101,7 @@ impl RoomSpawner {
         let d = self.depth;
         let weights = [(Goblin, 10), (Orc, 1 + d),
             (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
-            (MagicMissileScroll, 4)];
+            (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3)];
         self.table.extend(weights.into_iter());
     }
 }
@@ -200,3 +204,36 @@ fn confusion_scroll(ecs: &mut World, x: i32, y: i32) {
         .build();
 }
 
+pub fn dagger(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y})
+        .with(Renderable {
+            glyph: to_cp437('/'),
+            fg: CYAN,
+            bg: BLACK,
+            order: 2,
+        })
+        .with(Named("Dagger".to_owned()))
+        .with(Item{})
+        .with(Equippable { slot: EquipmentSlot::MainHand })
+        .with(CombatBonuses { power: 2, defense: 0 })
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
+
+pub fn shield(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y})
+        .with(Renderable {
+            glyph: to_cp437('('),
+            fg: CYAN,
+            bg: BLACK,
+            order: 2,
+        })
+        .with(Named("Shield".to_owned()))
+        .with(Item{})
+        .with(Equippable { slot: EquipmentSlot::OffHand })
+        .with(CombatBonuses { power: 0, defense: 1 })
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
