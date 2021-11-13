@@ -9,7 +9,7 @@ use crate::{
     map::*, 
     player::*, 
     save_load, 
-    spawner, 
+    spawner::{self, RoomSpawner}, 
     systems::*,
     screen::Screen,
 };
@@ -29,6 +29,7 @@ pub enum RunState {
 
 pub struct State {
     screen: Screen,
+    spawner: RoomSpawner,
     ecs: World,
     ai_system: MonsterAI,
     item_use_system: ItemUseSystem,
@@ -60,8 +61,9 @@ impl State {
         let player_entity = spawner::player(&mut ecs, x, y);
         ecs.insert(player_entity);
 
+        let mut room_spawner = RoomSpawner::new(1);
         for room in map.rooms().iter().skip(1) {
-            spawner::fill_room(&mut ecs, room, 1);
+            room_spawner.spawn(&mut ecs, room);
         }
 
         ecs.insert(map);
@@ -70,7 +72,8 @@ impl State {
             screen, ecs, ai_system: MonsterAI::default(),
             item_use_system: ItemUseSystem::default(),
             sorted_drawables: vec![],
-            dirty: true
+            dirty: true,
+            spawner: room_spawner,
         }
     }
 
@@ -183,8 +186,9 @@ impl State {
 
         let depth = self.ecs.fetch::<Map>().depth() + 1;
         let new_map = Map::new(MAP_WIDTH, MAP_HEIGHT, depth);
+        self.spawner.set_depth(depth);
         for room in new_map.rooms().iter().skip(1) {
-            spawner::fill_room(&mut self.ecs, room, depth);
+            self.spawner.spawn(&mut self.ecs, room);
         }
 
         let (plx, ply) = new_map.rooms()[0].center();

@@ -17,6 +17,7 @@ pub mod screen;
 pub mod systems;
 pub mod state;
 pub mod player;
+pub mod random_table;
 
 use macroquad::prelude::*;
 

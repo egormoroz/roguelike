@@ -1,16 +1,24 @@
-use rand::{random, thread_rng, Rng};
+use rand::{thread_rng, Rng};
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
+use smallvec::smallvec;
 use super::{
     comp::*,
     util::IRect,
     util::Glyph,
     util::to_cp437,
     util::colors::*,
+    random_table::RandomTable,
 };
-use smallvec::{SmallVec, smallvec};
 
-const MAX_MONSTERS: i32 = 2;
-const MAX_ITEMS: i32 = 4;
+#[derive(Debug, Clone, Copy)]
+enum SpawnOption {
+    Goblin,
+    Orc,
+    HealthPotion,
+    FireballScroll,
+    ConfusionScroll,
+    MagicMissileScroll,
+}
 
 pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
     ecs.create_entity()
@@ -29,51 +37,68 @@ pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
         .build()
 }
 
-pub fn random_monster(ecs: &mut World, x: i32, y: i32) {
-    match random() {
-        true => orc(ecs, x, y),
-        false => goblin(ecs, x, y),
-    }
+const MAX_DEPTH1_SPAWNS: i32 = 4;
+
+pub struct RoomSpawner {
+    spawn_points: Vec<(i32, i32)>,
+    table: RandomTable<SpawnOption>,
+    depth: i32,
 }
 
-pub fn fill_room(ecs: &mut World, room: &IRect, _depth: i32) {
-    let mut monster_spawn_points = SmallVec::<[(i32, i32); MAX_MONSTERS as usize]>::new();
-    let mut item_spawn_points = SmallVec::<[(i32, i32); MAX_ITEMS as usize]>::new();
-    let mut rng = thread_rng();
+impl RoomSpawner {
+    pub fn new(depth: i32) -> Self {
+        let mut inst = Self { 
+            spawn_points: vec![], 
+            table: RandomTable::new(), 
+            depth 
+        };
+        inst.update_table();
+        inst
+    }
 
-    let num_monsters = rng.gen_range(1..=MAX_MONSTERS);
-    let num_items = rng.gen_range(1..=MAX_ITEMS);
+    pub fn spawn(&mut self, ecs: &mut World, room: &IRect) {
+        let mut rng = thread_rng();
+        let num_spawns = rng.gen_range(1..=MAX_DEPTH1_SPAWNS + self.depth);
+        self.spawn_points.clear();
+        self.spawn_points.reserve(num_spawns as usize);
 
-    for _ in 1..=num_monsters {
-        let mut added = false;
-        while !added {
-            let x = rng.gen_range(room.x..=room.xx);
-            let y = rng.gen_range(room.y..=room.yy);
-            if !monster_spawn_points.contains(&(x, y)) { 
-                monster_spawn_points.push((x, y));
-                added = true;
+        for _ in 1..=num_spawns {
+            loop {
+                let x = rng.gen_range(room.x..=room.xx);
+                let y = rng.gen_range(room.y..=room.yy);
+                if !self.spawn_points.contains(&(x, y)) { 
+                    self.spawn_points.push((x, y));
+                    break;
+                }
+            }
+        }
+
+        for (x, y) in self.spawn_points.iter().cloned() {
+            use SpawnOption::*;
+            match *self.table.roll() {
+                Goblin => goblin(ecs, x, y),
+                Orc => orc(ecs, x, y),
+                HealthPotion => health_potion(ecs, x, y),
+                FireballScroll => fireball_scroll(ecs, x, y),
+                ConfusionScroll => confusion_scroll(ecs, x, y),
+                MagicMissileScroll => magic_missile_scroll(ecs, x, y),
             }
         }
     }
 
-    for _ in 1..=num_items {
-        let mut added = false;
-        while !added {
-            let x = rng.gen_range(room.x..=room.xx);
-            let y = rng.gen_range(room.y..=room.yy);
-            if !item_spawn_points.contains(&(x, y)) { 
-                item_spawn_points.push((x, y));
-                added = true;
-            }
-        }
+    pub fn set_depth(&mut self, depth: i32) {
+        self.depth = depth;
+        self.update_table();
     }
 
-    for (x, y) in monster_spawn_points.iter() {
-        random_monster(ecs, *x, *y);
-    }
-
-    for (x, y) in item_spawn_points.iter() {
-        random_item(ecs, *x, *y);
+    fn update_table(&mut self) {
+        use SpawnOption::*;
+        self.table.clear();
+        let d = self.depth;
+        let weights = [(Goblin, 10), (Orc, 1 + d),
+            (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
+            (MagicMissileScroll, 4)];
+        self.table.extend(weights.into_iter());
     }
 }
 
@@ -101,16 +126,6 @@ fn monster(ecs: &mut World, x: i32, y: i32, glyph: Glyph, name: String) {
         .with(CombatStats { max_hp: 16, hp: 16, defense: 1, power: 4 })
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
-}
-
-fn random_item(ecs: &mut World, x: i32, y: i32) {
-    match thread_rng().gen_range(1..=4) {
-        1 => health_potion(ecs, x, y),
-        2 => magic_missile_scroll(ecs, x, y),
-        3 => fireball_scroll(ecs, x, y),
-        4 => confusion_scroll(ecs, x, y),
-        _ => unreachable!()
-    }
 }
 
 fn health_potion(ecs: &mut World, x: i32, y: i32) {
@@ -184,3 +199,4 @@ fn confusion_scroll(ecs: &mut World, x: i32, y: i32) {
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
+
