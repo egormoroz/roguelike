@@ -67,7 +67,7 @@ impl Map {
             inst.create_corridor(c1.0, c1.1, c2.0, c2.1);
         }
 
-        let (x, y) = rooms[1].center();
+        let (x, y) = rooms.last().unwrap().center();
         inst.set_tile(x, y, TileType::DownStairs);
 
         inst.rooms = rooms;

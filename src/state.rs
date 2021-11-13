@@ -1,11 +1,11 @@
 use std::io::Write;
 use macroquad::prelude::IVec2;
-use specs::{prelude::*, saveload::{SimpleMarker, SimpleMarkerAllocator}};
+use specs::{prelude::*, saveload::SimpleMarkerAllocator};
 
 use crate::{
     comp::*, 
     util::{GameLog, colors::*, to_cp437 },
-    gui::{self, MainMenuSelection, UIState}, 
+    gui::{self, MainMenuSelection, UIState, GameOverResult}, 
     map::*, 
     player::*, 
     save_load, 
@@ -17,6 +17,7 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunState {
+    NewGame,
     AwaitingInput,
     PreRun,
     PlayerTurn,
@@ -25,6 +26,7 @@ pub enum RunState {
     UI(UIState),
     Quit,
     NextLevel,
+    GameOver,
 }
 
 pub struct State {
@@ -45,38 +47,16 @@ impl State {
         let mut ecs = World::new();
         register_all_components(&mut ecs);
 
-        ecs.register::<SimpleMarker<SerializeMe>>();
         ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
-
         ecs.insert(RunState::UI(UIState::MainMenu(MainMenuSelection::NewGame)));
-
-        let mut log = GameLog::new();
-        write!(log.new_entry(), "Hello world").unwrap();
-        ecs.insert(log);
-
-        let map = Map::new(MAP_WIDTH, MAP_HEIGHT, 1);
-        let (x, y) = map.rooms()[0].center();
-        ecs.insert(IVec2::new(x, y));
-        spawner::dagger(&mut ecs, x + 1, y + 1);
-        spawner::shield(&mut ecs, x + 2, y + 2);
-
-
-        let player_entity = spawner::player(&mut ecs, x, y);
-        ecs.insert(player_entity);
-
-        let mut room_spawner = RoomSpawner::new(1);
-        for room in map.rooms().iter().skip(1) {
-            room_spawner.spawn(&mut ecs, room);
-        }
-
-        ecs.insert(map);
+        ecs.insert(GameLog::new());
 
         Self { 
             screen, ecs, ai_system: MonsterAI::default(),
             item_use_system: ItemUseSystem::default(),
             sorted_drawables: vec![],
             dirty: true,
-            spawner: room_spawner,
+            spawner: RoomSpawner::new(1),
         }
     }
 
@@ -97,7 +77,8 @@ impl State {
         self.screen.clear();
 
         match *self.ecs.fetch::<RunState>() {
-            RunState::UI(UIState::MainMenu(_)) | RunState::SaveGame => return,
+            RunState::UI(UIState::MainMenu(_)) | RunState::SaveGame 
+                | RunState::GameOver | RunState::NewGame => return,
             _ => (),
         };
 
@@ -132,6 +113,10 @@ impl State {
         use RunState::*;
         let old_state = *self.ecs.fetch::<RunState>();
         let new_state = match old_state {
+            NewGame => {
+                self.reset();
+                PreRun
+            }
             PreRun => {
                 self.run_systems();
                 AwaitingInput
@@ -155,6 +140,10 @@ impl State {
             NextLevel => {
                 self.goto_next_level();
                 PreRun
+            },
+            GameOver => match gui::game_over(&mut self.screen) {
+                GameOverResult::Idle => GameOver,
+                GameOverResult::Quit => RunState::UI(UIState::MainMenu(MainMenuSelection::NewGame))
             }
         };
         *self.ecs.write_resource::<RunState>() = new_state;
@@ -218,6 +207,27 @@ impl State {
 
         write!(self.ecs.fetch_mut::<GameLog>().new_entry(),
             "You descend to the next level, and take a moment to heal.").unwrap();
+    }
+
+    fn reset(&mut self) {
+        {
+            let mut log = self.ecs.fetch_mut::<GameLog>();
+            log.clear();
+            write!(log.new_entry(), "Hello world").unwrap();
+        }
+
+        let map = Map::new(MAP_WIDTH, MAP_HEIGHT, 1);
+        let (x, y) = map.rooms()[0].center();
+        self.ecs.insert(IVec2::new(x, y));
+
+        let player_entity = spawner::player(&mut self.ecs, x, y);
+        self.ecs.insert(player_entity);
+
+        self.spawner.set_depth(1);
+        for room in map.rooms().iter().skip(1) {
+            self.spawner.spawn(&mut self.ecs, room);
+        }
+        self.ecs.insert(map);
     }
 }
 

@@ -97,16 +97,16 @@ pub fn handle_state(state: UIState, ecs: &mut World, s: &mut Screen) -> RunState
             }
         }
         MainMenu(current) => match main_menu(ecs, s, current) {
-                MainMenuResult::Idle(selection) => RunState::UI(MainMenu(selection)),
-                MainMenuResult::Selected(selection) => match selection {
-                    MainMenuSelection::NewGame => RunState::PreRun,
-                    MainMenuSelection::Quit=> RunState::Quit,
-                    MainMenuSelection::LoadGame => {
-                        save_load::load_game(ecs);
-                        // save_load::delete_save();
-                        RunState::PreRun
-                    }
+            MainMenuResult::Idle(selection) => RunState::UI(MainMenu(selection)),
+            MainMenuResult::Selected(selection) => match selection {
+                MainMenuSelection::NewGame => RunState::NewGame,
+                MainMenuSelection::Quit=> RunState::Quit,
+                MainMenuSelection::LoadGame => {
+                    save_load::load_game(ecs);
+                    // save_load::delete_save();
+                    RunState::PreRun
                 }
             }
+        }
     }
 }

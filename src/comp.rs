@@ -38,7 +38,8 @@ pub fn register_all_components(ecs: &mut World) {
     ecs.register::<Confusion>();
     ecs.register::<Equippable>();
     ecs.register::<Equipped>();
-    ecs.register::<CombatBonuses>();
+    ecs.register::<AttackBonus>();
+    ecs.register::<DefenseBonus>();
 
     ecs.register::<SimpleMarker<SerializeMe>>();
 }
@@ -203,8 +204,12 @@ pub struct Equipped {
 }
 
 #[derive(Component, ConvertSaveload, Clone, Copy)]
-pub struct CombatBonuses {
+pub struct AttackBonus {
     pub power: i32,
+}
+
+#[derive(Component, ConvertSaveload, Clone, Copy)]
+pub struct DefenseBonus {
     pub defense: i32,
 }
 

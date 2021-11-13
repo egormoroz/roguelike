@@ -143,3 +143,17 @@ pub fn ranged_target(ecs: &World, s : &mut Screen, range: i32, pos: IVec2) -> (I
     s.draw_text(5, 0, YELLOW, BLACK, "Select target");
     show_examiner(ecs, s, pos, Some(range))
 }
+
+pub enum GameOverResult { Idle, Quit }
+
+pub fn game_over(s : &mut Screen) -> GameOverResult {
+    s.draw_text_centered(15, YELLOW, BLACK, "Your journey has ended!");
+    s.draw_text_centered(17, WHITE, BLACK, "One day, we'll tell you all about how you did.");
+    s.draw_text_centered(18, WHITE, BLACK, "That day, sadly, is not in this chapter..");
+    s.draw_text_centered(20, MAGENTA, BLACK, "Press any key to return to the menu.");
+
+    match get_last_key_pressed() {
+        Some(_) => GameOverResult::Quit,
+        None => GameOverResult::Idle
+    }
+}

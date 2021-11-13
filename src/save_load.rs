@@ -49,7 +49,7 @@ pub fn save_game(ecs: &mut World) {
     serialize_individually!(ecs, serializer, data, Position, Renderable, Player, Viewshed, Monster, 
         Named, BlocksTile, CombatStats, SufferDamage, WantsToMelee, Item, Consumable, Ranged, InflictsDamage, 
         AreaOfEffect, Confusion, ProvidesHealing, InBackpack, WantsToPickupItem, WantsToUseItem,
-        WantsToDropItem, Equippable, Equipped, CombatBonuses
+        WantsToDropItem, Equippable, Equipped, AttackBonus, DefenseBonus
     );
 }
 
@@ -59,7 +59,7 @@ pub fn load_game(ecs: &mut World) {
         let data = std::fs::read_to_string("./saved_map.json").unwrap();
         let mut map: Map = serde_json::from_str(&data).unwrap();
         map.realloc_content_index();
-        *ecs.write_resource::<Map>() = map;
+        ecs.insert(map);
     }
     ecs.delete_all();
     let data = std::fs::read_to_string("./saved_entities.json").unwrap();
@@ -73,15 +73,18 @@ pub fn load_game(ecs: &mut World) {
         deserialize_individually!(ecs, de, d, Position, Renderable, Player, Viewshed, Monster, 
             Named, BlocksTile, CombatStats, SufferDamage, WantsToMelee, Item, Consumable, Ranged, InflictsDamage, 
             AreaOfEffect, Confusion, ProvidesHealing, InBackpack, WantsToPickupItem, WantsToUseItem,
-            WantsToDropItem, Equippable, Equipped, CombatBonuses
+            WantsToDropItem, Equippable, Equipped, AttackBonus, DefenseBonus
         );
     }
 
-    let entities = ecs.entities();
-    let positions = ecs.read_storage::<Position>();
-    let players = ecs.read_storage::<Player>();
+    let (player, plp) = {
+        let entities = ecs.entities();
+        let positions = ecs.read_storage::<Position>();
+        let players = ecs.read_storage::<Player>();
 
-    let (player_entity, plp, _) = (&entities, &positions, &players).join().next().unwrap();
-    *ecs.write_resource::<IVec2>() = IVec2::new(plp.x, plp.y);
-    *ecs.write_resource::<Entity>() = player_entity;
+        let (e, plp, _) = (&entities, &positions, &players).join().next().unwrap();
+        (e, *plp)
+    };
+    ecs.insert(IVec2::new(plp.x, plp.y));
+    ecs.insert(player);
 }

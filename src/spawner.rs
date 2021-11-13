@@ -20,6 +20,8 @@ enum SpawnOption {
     MagicMissileScroll,
     Dagger,
     Shield,
+    LongSword,
+    TowerShield,
 }
 
 pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
@@ -86,6 +88,8 @@ impl RoomSpawner {
                 MagicMissileScroll => magic_missile_scroll(ecs, x, y),
                 Dagger => dagger(ecs, x, y),
                 Shield => shield(ecs, x, y),
+                LongSword => longsword(ecs, x, y),
+                TowerShield => tower_shield(ecs, x, y),
             }
         }
     }
@@ -99,9 +103,12 @@ impl RoomSpawner {
         use SpawnOption::*;
         self.table.clear();
         let d = self.depth;
-        let weights = [(Goblin, 10), (Orc, 1 + d),
+        let weights = [
+            (Goblin, 10), (Orc, 1 + d),
             (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
-            (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3)];
+            (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
+            (LongSword, d - 1), (TowerShield, d - 1)
+        ];
         self.table.extend(weights.into_iter());
     }
 }
@@ -204,7 +211,7 @@ fn confusion_scroll(ecs: &mut World, x: i32, y: i32) {
         .build();
 }
 
-pub fn dagger(ecs: &mut World, x: i32, y: i32) {
+fn dagger(ecs: &mut World, x: i32, y: i32) {
     ecs.create_entity()
         .with(Position { x, y})
         .with(Renderable {
@@ -216,12 +223,12 @@ pub fn dagger(ecs: &mut World, x: i32, y: i32) {
         .with(Named("Dagger".to_owned()))
         .with(Item{})
         .with(Equippable { slot: EquipmentSlot::MainHand })
-        .with(CombatBonuses { power: 2, defense: 0 })
+        .with(AttackBonus { power: 2 })
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
 
-pub fn shield(ecs: &mut World, x: i32, y: i32) {
+fn shield(ecs: &mut World, x: i32, y: i32) {
     ecs.create_entity()
         .with(Position { x, y})
         .with(Renderable {
@@ -233,7 +240,41 @@ pub fn shield(ecs: &mut World, x: i32, y: i32) {
         .with(Named("Shield".to_owned()))
         .with(Item{})
         .with(Equippable { slot: EquipmentSlot::OffHand })
-        .with(CombatBonuses { power: 0, defense: 1 })
+        .with(DefenseBonus { defense: 1 })
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
+
+fn longsword(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y})
+        .with(Renderable {
+            glyph: to_cp437('/'),
+            fg: YELLOW,
+            bg: BLACK,
+            order: 2,
+        })
+        .with(Named("Longsword".to_owned()))
+        .with(Item{})
+        .with(Equippable { slot: EquipmentSlot::MainHand })
+        .with(AttackBonus { power: 4 })
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
+
+fn tower_shield(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y})
+        .with(Renderable {
+            glyph: to_cp437('('),
+            fg: YELLOW,
+            bg: BLACK,
+            order: 2,
+        })
+        .with(Named("Tower shield".to_owned()))
+        .with(Item{})
+        .with(Equippable { slot: EquipmentSlot::OffHand })
+        .with(DefenseBonus { defense: 3 })
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }

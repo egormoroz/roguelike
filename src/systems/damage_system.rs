@@ -1,5 +1,5 @@
 use specs::prelude::*;
-use crate::{comp::*, util::GameLog};
+use crate::{comp::*, util::GameLog, state::RunState};
 use std::io::Write;
 
 pub struct DamageSystem;
@@ -32,12 +32,10 @@ impl DamageSystem {
 
             for (entity, stats, name) in (&entities, &stats, &names).join() {
                 if stats.hp <= 0 {
+                    dead.push(entity);
                     match players.get(entity) {
-                        Some(_) => write!(log.new_entry(), "You are dead.").unwrap(),
-                        None => {
-                            write!(log.new_entry(), "{} dies.", name.0).unwrap();
-                            dead.push(entity);
-                        }
+                        Some(_) => *ecs.fetch_mut::<RunState>() = RunState::GameOver,
+                        None => write!(log.new_entry(), "{} dies.", name.0).unwrap(),
                     };
                 }
             }

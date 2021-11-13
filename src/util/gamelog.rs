@@ -20,4 +20,8 @@ impl GameLog {
         self.entries[idx..].iter()
             .map(|buf| std::str::from_utf8(buf).unwrap())
     }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
 }

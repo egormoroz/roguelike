@@ -10,8 +10,10 @@ impl<T: Clone> RandomTable<T> {
 
     pub fn add(&mut self, entry: T, weight: i32) {
         assert!(weight >= 0);
-        self.total_weight += weight;
-        self.entries.push((self.total_weight, entry));
+        if weight > 0 {
+            self.total_weight += weight;
+            self.entries.push((self.total_weight, entry));
+        }
     }
 
     pub fn extend(&mut self, it: impl Iterator<Item = (T, i32)>) {

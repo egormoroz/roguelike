@@ -139,7 +139,7 @@ impl<'a> System<'a> for ItemUseSystem {
                     let slot = *slot;
                     let mut to_unequip = SmallVec::<[Entity; 4]>::new();
                     for (itm, equipped) in (&entities, &equipped).join() {
-                        if equipped.owner == *target /*&& equipped.slot == slot */{
+                        if equipped.owner == *target && equipped.slot == slot {
                             to_unequip.push(itm);
                             if equipped.owner == player_entity {
                                 let name = &named.get(itm).unwrap().0;
