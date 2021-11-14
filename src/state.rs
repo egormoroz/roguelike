@@ -112,6 +112,7 @@ impl State {
 
         use RunState::*;
         let old_state = *self.ecs.fetch::<RunState>();
+        let mut do_cleanup = false;
         let new_state = match old_state {
             NewGame => {
                 self.reset();
@@ -124,11 +125,12 @@ impl State {
             AwaitingInput => handle_input(&mut self.ecs),
             PlayerTurn => {
                 self.run_systems();
+                do_cleanup = true;
                 MonsterTurn
             },
             MonsterTurn => {
                 self.run_systems();
-                self.dirty = true;
+                do_cleanup = true;
                 AwaitingInput
             }
             SaveGame => {
@@ -148,7 +150,10 @@ impl State {
         };
         *self.ecs.write_resource::<RunState>() = new_state;
 
-        DamageSystem::delete_the_dead(&mut self.ecs);
+        if do_cleanup {
+            DamageSystem::delete_the_dead(&mut self.ecs);
+            self.dirty = true;
+        }
 
         self.screen.flush();
 
@@ -210,6 +215,8 @@ impl State {
     }
 
     fn reset(&mut self) {
+        self.dirty = true;
+        self.ecs.delete_all();
         {
             let mut log = self.ecs.fetch_mut::<GameLog>();
             log.clear();
