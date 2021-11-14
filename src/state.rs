@@ -4,7 +4,7 @@ use specs::{prelude::*, saveload::SimpleMarkerAllocator};
 
 use crate::{
     comp::*, 
-    util::{GameLog, colors::*, to_cp437 },
+    util::{GameLog, colors::*, to_cp437, Glyph },
     gui::{self, MainMenuSelection, UIState, GameOverResult}, 
     map::*, 
     player::*, 
@@ -233,7 +233,7 @@ impl State {
 
 fn draw_map(map: &Map, s: &mut Screen) {
     let bg = BLACK;
-    let floor_fg = [0.5, 0.5, 0.5, 1.0];
+    let floor_fg = [0.0, 0.5, 0.5, 1.0];
     let wall_fg = [0.0, 1.0, 0.0, 1.0];
     let stairs_fg = VIOLET;
 
@@ -246,7 +246,7 @@ fn draw_map(map: &Map, s: &mut Screen) {
 
             let (mut fg, glyph) = match map.tile(x, y) {
                 TileType::Floor => (floor_fg, to_cp437('.')),
-                TileType::Wall => (wall_fg, to_cp437('#')),
+                TileType::Wall => (wall_fg, wall_glyph(map, x, y)),
                 TileType::DownStairs => (stairs_fg, to_cp437('>'))
             };
             
@@ -254,4 +254,21 @@ fn draw_map(map: &Map, s: &mut Screen) {
             s.draw_glyph(x, y, glyph, fg, bg);
         }
     }
+}
+
+fn wall_glyph(map: &Map, x: i32, y: i32) -> Glyph {
+    let bounds = map.bounds();
+    if x < 1 || y < 1 || x >= bounds.xx || y >= bounds.yy { return 35; }
+    
+    let mut mask = 0;
+    let test = |x, y| map.tile_flags(x, y).revealed 
+        && map.tile(x, y) == TileType::Wall;
+
+    if test(x, y - 1) { mask |= 1; }
+    if test(x, y + 1) { mask |= 2; }
+    if test(x - 1, y) { mask |= 4; }
+    if test(x + 1, y) { mask |= 8; }
+
+    [9, 186, 186, 186, 205, 188, 187, 185, 205, 200, 201,
+     204, 205, 202, 203, 206][mask]
 }
