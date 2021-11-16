@@ -16,6 +16,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
         ReadStorage<'a, DefenseBonus>,
         ReadStorage<'a, Equipped>,
         ReadStorage<'a, Position>,
+        ReadStorage<'a, HungerClock>,
         WriteExpect<'a, GameLog>,
         WriteStorage<'a, WantsToMelee>,
         WriteStorage<'a, SufferDamage>
@@ -24,11 +25,11 @@ impl<'a> System<'a> for MeleeCombatSystem {
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut particle_builder, names, 
             combat_stats, attack_bonuses, defense_bonuses, 
-            equipped, positions, mut log, 
-            mut wants_melee, mut inflict_damage) = data;
+            equipped, positions, hunger_clocks, 
+            mut log, mut wants_melee, mut inflict_damage) = data;
 
-        for (attacker, name, stats, wants_melee) 
-            in (&entities, &names, &combat_stats, &mut wants_melee).join() 
+        for (attacker, name, stats, wants_melee, hc) 
+            in (&entities, &names, &combat_stats, &mut wants_melee, hunger_clocks.maybe()).join() 
         {
             if stats.hp <= 0 { continue; }
             if let Some(pos) = positions.get(wants_melee.target) {
@@ -41,6 +42,10 @@ impl<'a> System<'a> for MeleeCombatSystem {
                 if equipped.owner == attacker {
                     offensive_bonus += bonus.power;
                 }
+            }
+
+            if let Some(HungerState::WellFed) = hc.map(|hc| hc.state) {
+                offensive_bonus += 1;
             }
 
             for (bonus, equipped) in (&defense_bonuses, &equipped).join() {

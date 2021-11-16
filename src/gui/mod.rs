@@ -34,7 +34,8 @@ pub fn draw_ui(ecs: &World, s: &mut Screen) {
     let depth = ecs.fetch::<Map>().depth();
     let players = ecs.read_storage::<Player>();
     let stats = ecs.read_storage::<CombatStats>();
-    let (stats, _) = (&stats, &players).join().next().unwrap();
+    let hunger_clock = ecs.read_storage::<HungerClock>();
+    let (stats, hc, _) = (&stats, &hunger_clock, &players).join().next().unwrap();
 
     s.draw_box(IRect::new(0, 43, 80, 7), WHITE, BLACK);
 
@@ -50,6 +51,15 @@ pub fn draw_ui(ecs: &World, s: &mut Screen) {
         s.draw_text(2, y, WHITE, [0.0; 4], entry);
         y += 1;
     }
+
+    use HungerState::*;
+    let (text, fg) = match hc.state {
+        WellFed => ("Well fed", GREEN),
+        Normal => ("", [0.0; 4]),
+        Hungry => ("Hungry", ORANGE),
+        Starving => ("Starving", RED),
+    };
+    s.draw_text(71, 42, fg, BLACK, text);
 }
 
 

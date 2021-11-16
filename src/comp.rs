@@ -41,6 +41,8 @@ pub fn register_all_components(ecs: &mut World) {
     ecs.register::<AttackBonus>();
     ecs.register::<DefenseBonus>();
     ecs.register::<ParticleLifetime>();
+    ecs.register::<HungerClock>();
+    ecs.register::<Nutritious>();
 
     ecs.register::<SimpleMarker<SerializeMe>>();
 }
@@ -71,7 +73,8 @@ pub struct Renderable {
     pub order: i32,
 }
 
-#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
 pub struct Player {}
 
 #[derive(Component, ConvertSaveload, Clone)]
@@ -92,14 +95,16 @@ impl Viewshed {
     }
 }
 
-#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
 pub struct Monster {}
 
 #[derive(Component, ConvertSaveload, Clone)]
 pub struct Named(pub String);
 
 
-#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
 pub struct BlocksTile {}
 
 #[derive(Component, ConvertSaveload, Clone, Copy)]
@@ -131,7 +136,8 @@ impl SufferDamage {
     }
 }
 
-#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
 pub struct Item {}
 
 #[derive(Component, ConvertSaveload, Clone, Copy)]
@@ -167,7 +173,8 @@ pub struct WantsToDropItem {
     pub item: Entity,
 }
 
-#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
 pub struct Consumable {}
 
 #[derive(Component, ConvertSaveload, Clone, Copy)]
@@ -218,5 +225,18 @@ pub struct DefenseBonus {
 pub struct ParticleLifetime {
     pub remaining_ms: f32,
 }
+
+#[derive(Component, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub enum HungerState { WellFed, Normal, Hungry, Starving }
+
+#[derive(Component, ConvertSaveload, Clone, Copy)]
+pub struct HungerClock {
+    pub state: HungerState,
+    pub duration: i32,
+}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
+pub struct Nutritious {}
 
 pub struct SerializeMe {}

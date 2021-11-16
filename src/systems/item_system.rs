@@ -63,22 +63,24 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadStorage<'a, Consumable>,
         ReadStorage<'a, AreaOfEffect>,
         ReadStorage<'a, Equippable>,
+        ReadStorage<'a, Nutritious>,
         ReadStorage<'a, Position>,
         WriteStorage<'a, Confusion>,
         WriteStorage<'a, SufferDamage>,
         WriteStorage<'a, WantsToUseItem>,
         WriteStorage<'a, CombatStats>,
         WriteStorage<'a, Equipped>,
-        WriteStorage<'a, InBackpack>
+        WriteStorage<'a, InBackpack>,
+        WriteStorage<'a, HungerClock>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, map, player_entity, mut log, mut particle_builder,
             named, healers, inflicts_damage, 
-            consumables, aoe, equippable, 
+            consumables, aoe, equippable, nutricious,
             positions, mut confused, 
             mut suffer_damage, mut wants_use, mut stats, 
-            mut equipped, mut backpacked) = data;
+            mut equipped, mut backpacked, mut hunger_clocks) = data;
         let player_entity = *player_entity;
 
         for (user, useitem, stats) in (&entities, &wants_use, &mut stats).join() {
@@ -184,6 +186,18 @@ impl<'a> System<'a> for ItemUseSystem {
                         write!(log.new_entry(), "You equip {}.", name).unwrap();
                     }
                 } 
+
+                if nutricious.contains(useitem.item) {
+                    if let Some(hc) = hunger_clocks.get_mut(user) {
+                        hc.state = HungerState::WellFed;
+                        hc.duration = 20;
+                        if user == player_entity {
+                            let name = &named.get(useitem.item).unwrap().0;
+                            write!(log.new_entry(), "You eat the {}.", name).unwrap();
+                        }
+                    }
+                    used = true;
+                }
             }
 
             if used && consumables.contains(useitem.item) {
@@ -219,7 +233,7 @@ impl<'a> System<'a> for ItemDropSystem {
 
             if entity == *player_entity {
                 write!(log.new_entry(), "You drop the {}.", 
-                    named.get(entity).unwrap().0).unwrap();
+                    named.get(to_drop.item).unwrap().0).unwrap();
             }
         }
 

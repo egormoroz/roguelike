@@ -67,11 +67,12 @@ impl State {
         self.ai_system.run_now(&self.ecs);
         MapIndexingSystem.run_now(&self.ecs);
         MeleeCombatSystem.run_now(&self.ecs);
-        DamageSystem.run_now(&self.ecs);
         InventorySystem.run_now(&self.ecs);
         self.item_use_system.run_now(&self.ecs);
         ItemDropSystem.run_now(&self.ecs);
         ParticleSpawnSystem.run_now(&self.ecs);
+        HungerSystem.run_now(&self.ecs);
+        DamageSystem.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
