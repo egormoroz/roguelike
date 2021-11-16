@@ -15,6 +15,10 @@ serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 rand = "*"
 
-[profile.dev]
-opt-level = 1
-overflow-checks = false
+# [profile.dev]
+# opt-level = 1
+# overflow-checks = false
+
+
+[profile.dev.package.macroquad]
+opt-level = 3

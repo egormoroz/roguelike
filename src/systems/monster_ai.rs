@@ -28,14 +28,15 @@ impl<'a> System<'a> for MonsterAI {
         WriteStorage<'a, Confusion>,
         WriteStorage<'a, Viewshed>,
         WriteStorage<'a, Position>,
-        WriteStorage<'a, WantsToMelee>
+        WriteStorage<'a, WantsToMelee>,
+        WriteStorage<'a, EntityMoved>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, player, plp, state,
             mut map, mut particle_builder, monster, 
-            mut confused, mut viewshed, 
-            mut pos, mut wants_to_melee) = data;
+            mut confused, mut viewshed, mut pos, 
+            mut wants_to_melee, mut entity_moved) = data;
 
         match *state {
             RunState::MonsterTurn => (),
@@ -65,6 +66,7 @@ impl<'a> System<'a> for MonsterAI {
                     map.tile_flags_mut(step.x, step.y).blocked = true;
                     *pos = step.into();
                     viewshed.dirty = true;
+                    entity_moved.insert(entity, EntityMoved {}).expect("failed to insert EntityMoved");
                 }
             }
         }

@@ -12,6 +12,7 @@ use crate::{
 pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> RunState {
     let mut positions = ecs.write_storage::<Position>();
     let mut viewsheds = ecs.write_storage::<Viewshed>();
+    let mut entity_moved = ecs.write_storage::<EntityMoved>();
     let players = ecs.read_storage::<Player>();
     let map = ecs.fetch::<Map>();
     let entities = ecs.entities();
@@ -24,6 +25,7 @@ pub fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> RunState {
         pos.x = dst_x;
         pos.y = dst_y;
         viewshed.dirty = true;
+        entity_moved.insert(entity, EntityMoved {}).expect("failed to insert entity moved");
         *ecs.write_resource::<IVec2>() = IVec2::new(dst_x, dst_y);
         RunState::PlayerTurn
     } else {

@@ -44,6 +44,10 @@ pub fn register_all_components(ecs: &mut World) {
     ecs.register::<HungerClock>();
     ecs.register::<Nutritious>();
     ecs.register::<MagicMapper>();
+    ecs.register::<Hidden>();
+    ecs.register::<EntryTrigger>();
+    ecs.register::<EntityMoved>();
+    ecs.register::<SingleActivation>();
 
     ecs.register::<SimpleMarker<SerializeMe>>();
 }
@@ -243,5 +247,22 @@ pub struct Nutritious {}
 #[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
 #[storage(NullStorage)]
 pub struct MagicMapper {}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
+pub struct Hidden {}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
+pub struct EntryTrigger {}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
+pub struct EntityMoved {}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
+pub struct SingleActivation {}
+
 
 pub struct SerializeMe {}

@@ -6,6 +6,7 @@ mod damage_system;
 mod item_system;
 mod particle_system;
 mod hunger_system;
+mod trigger_system;
 
 pub use visibility_system::*;
 pub use monster_ai::*;
@@ -15,3 +16,4 @@ pub use damage_system::*;
 pub use item_system::*;
 pub use particle_system::*;
 pub use hunger_system::*;
+pub use trigger_system::*;

@@ -24,6 +24,7 @@ enum SpawnOption {
     TowerShield,
     Rations,
     MagicMappingScroll,
+    BearTrap,
 }
 
 pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
@@ -95,6 +96,7 @@ impl RoomSpawner {
                 TowerShield => tower_shield(ecs, x, y),
                 Rations => rations(ecs, x, y),
                 MagicMappingScroll => magic_mapping_scroll(ecs, x, y),
+                BearTrap => bear_trap(ecs, x, y),
             }
         }
     }
@@ -106,15 +108,15 @@ impl RoomSpawner {
 
     fn update_table(&mut self) {
         use SpawnOption::*;
-        self.table.clear();
         let d = self.depth;
         let weights = [
             (Goblin, 10), (Orc, 1 + d),
             (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
             (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
             (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10),
-            (MagicMappingScroll, 400),
+            (MagicMappingScroll, 2), (BearTrap, 200),
         ];
+        self.table.clear();
         self.table.extend(weights.into_iter());
     }
 }
@@ -315,6 +317,24 @@ fn magic_mapping_scroll(ecs: &mut World, x: i32, y: i32) {
         .with(Item {})
         .with(MagicMapper {})
         .with(Consumable {})
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
+
+fn bear_trap(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y })
+        .with(Renderable {
+            glyph: to_cp437('^'),
+            fg: RED,
+            bg: BLACK,
+            order: 2,
+        })
+        .with(Named("Bear trap".to_owned()))
+        .with(Hidden {})
+        .with(EntryTrigger {})
+        .with(InflictsDamage { damage: 6 })
+        .with(SingleActivation {})
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }

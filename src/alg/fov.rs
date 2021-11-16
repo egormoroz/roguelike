@@ -159,7 +159,7 @@ impl Row {
     }
 
     fn cols(&self, r: i32) -> Range<i32> {
-        let d = ((r * r - self.depth * self.depth) as f32).sqrt().ceil() as i32;
+        let d = ((r * r - self.depth * self.depth) as f32).sqrt().floor() as i32;
         if d == 0 { return 0..0 }
 
         let start = self.start_slope.mult(self.depth).round_ties_up()

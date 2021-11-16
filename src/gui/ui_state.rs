@@ -55,9 +55,11 @@ pub fn handle_state(state: UIState, ecs: &mut World, s: &mut Screen) -> RunState
                 let mut log = ecs.fetch_mut::<GameLog>();
                 let map = ecs.fetch::<Map>();
                 let names = ecs.read_storage::<Named>();
+                let hidden = ecs.read_storage::<Hidden>();
                 let mut items: SmallVec<[&str; 8]> = smallvec![];
 
                 for e in map.tile_content(epos.x, epos.y) {
+                    if hidden.contains(*e) { continue; }
                     if let Some(name) = names.get(*e) {
                         items.push(&name.0);
                     }

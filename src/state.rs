@@ -67,13 +67,14 @@ impl State {
         VisibilitySystem.run_now(&self.ecs);
         self.ai_system.run_now(&self.ecs);
         MapIndexingSystem.run_now(&self.ecs);
+        TriggerSystem.run_now(&self.ecs);
         MeleeCombatSystem.run_now(&self.ecs);
+        DamageSystem.run_now(&self.ecs);
         InventorySystem.run_now(&self.ecs);
         self.item_use_system.run_now(&self.ecs);
         ItemDropSystem.run_now(&self.ecs);
         ParticleSpawnSystem.run_now(&self.ecs);
         HungerSystem.run_now(&self.ecs);
-        DamageSystem.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -93,11 +94,12 @@ impl State {
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
+        let hidden = self.ecs.read_storage::<Hidden>();
 
         self.sorted_drawables.clear();
-        self.sorted_drawables.extend((&positions, &renderables)
+        self.sorted_drawables.extend((&positions, &renderables, !&hidden)
             .join()
-            .map(|(r, p)| (*r, *p))
+            .map(|(r, p, _)| (*r, *p))
         );
         self.sorted_drawables.sort_unstable_by_key(|(_, x)| x.order);
 
