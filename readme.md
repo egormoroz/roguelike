@@ -1,7 +1,12 @@
 # A simple roguelike
 ## Currently has:
-- Hardcoded map
+- Hardcoded map with ability to go deeper (unlimited depth)
 - Field of view
 - Crappy UI
-- A few consumable items and monsters, both spawn randomly
+- Healing potions, magic scrolls, gear, food
+- Orcs and goblins
+- Random spawning using spawn tables
+- Simple hunger system
+- Simple visual effects
+- Traps
 - Save/load 
