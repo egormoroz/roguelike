@@ -2,7 +2,8 @@ use std::io::Write;
 use macroquad::prelude::IVec2;
 use smallvec::SmallVec;
 use specs::prelude::*;
-use crate:: {
+use crate::{
+    state::RunState,
     comp::*, 
     util::{GameLog, to_cp437, colors::*}, 
     map::Map,
@@ -57,6 +58,7 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadExpect<'a, Entity>,
         WriteExpect<'a, GameLog>,
         WriteExpect<'a, ParticleBuilder>,
+        WriteExpect<'a, RunState>,
         ReadStorage<'a, Named>,
         ReadStorage<'a, ProvidesHealing>,
         ReadStorage<'a, InflictsDamage>,
@@ -64,6 +66,7 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadStorage<'a, AreaOfEffect>,
         ReadStorage<'a, Equippable>,
         ReadStorage<'a, Nutritious>,
+        ReadStorage<'a, MagicMapper>,
         ReadStorage<'a, Position>,
         WriteStorage<'a, Confusion>,
         WriteStorage<'a, SufferDamage>,
@@ -76,9 +79,9 @@ impl<'a> System<'a> for ItemUseSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, map, player_entity, mut log, mut particle_builder,
-            named, healers, inflicts_damage, 
+            mut state, named, healers, inflicts_damage, 
             consumables, aoe, equippable, nutricious,
-            positions, mut confused, 
+            magic_mappers, positions, mut confused, 
             mut suffer_damage, mut wants_use, mut stats, 
             mut equipped, mut backpacked, mut hunger_clocks) = data;
         let player_entity = *player_entity;
@@ -196,6 +199,12 @@ impl<'a> System<'a> for ItemUseSystem {
                             write!(log.new_entry(), "You eat the {}.", name).unwrap();
                         }
                     }
+                    used = true;
+                }
+
+                if magic_mappers.contains(useitem.item) {
+                    write!(log.new_entry(), "The map is revealed to you.").unwrap();
+                    *state = RunState::MagicMapReveal { row: 0 };
                     used = true;
                 }
             }

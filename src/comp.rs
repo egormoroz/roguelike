@@ -43,6 +43,7 @@ pub fn register_all_components(ecs: &mut World) {
     ecs.register::<ParticleLifetime>();
     ecs.register::<HungerClock>();
     ecs.register::<Nutritious>();
+    ecs.register::<MagicMapper>();
 
     ecs.register::<SimpleMarker<SerializeMe>>();
 }
@@ -238,5 +239,9 @@ pub struct HungerClock {
 #[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
 #[storage(NullStorage)]
 pub struct Nutritious {}
+
+#[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
+#[storage(NullStorage)]
+pub struct MagicMapper {}
 
 pub struct SerializeMe {}

@@ -27,6 +27,7 @@ pub enum RunState {
     Quit,
     NextLevel,
     GameOver,
+    MagicMapReveal { row: i32 }
 }
 
 pub struct State {
@@ -127,7 +128,10 @@ impl State {
             AwaitingInput => handle_input(&mut self.ecs),
             PlayerTurn => {
                 self.run_systems();
-                MonsterTurn
+                match *self.ecs.fetch::<RunState>() {
+                    mmr @ MagicMapReveal { row: _ } => mmr,
+                    _ => MonsterTurn,
+                }
             },
             MonsterTurn => {
                 self.run_systems();
@@ -146,6 +150,19 @@ impl State {
             GameOver => match gui::game_over(&mut self.screen) {
                 GameOverResult::Idle => GameOver,
                 GameOverResult::Quit => RunState::UI(UIState::MainMenu(MainMenuSelection::NewGame))
+            },
+            MagicMapReveal { row } => {
+                let mut map = self.ecs.fetch_mut::<Map>();
+                let bounds = map.bounds();
+                for x in 0..bounds.width() {
+                    map.tile_flags_mut(x, row).revealed = true;
+                }
+
+                if row + 1 >= bounds.height() {
+                    MonsterTurn
+                } else {
+                    MagicMapReveal { row: row + 1 }
+                }
             }
         };
         *self.ecs.write_resource::<RunState>() = new_state;

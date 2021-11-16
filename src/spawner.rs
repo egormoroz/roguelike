@@ -23,6 +23,7 @@ enum SpawnOption {
     LongSword,
     TowerShield,
     Rations,
+    MagicMappingScroll,
 }
 
 pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
@@ -92,7 +93,8 @@ impl RoomSpawner {
                 Shield => shield(ecs, x, y),
                 LongSword => longsword(ecs, x, y),
                 TowerShield => tower_shield(ecs, x, y),
-                Rations => rations(ecs, x, y)
+                Rations => rations(ecs, x, y),
+                MagicMappingScroll => magic_mapping_scroll(ecs, x, y),
             }
         }
     }
@@ -110,7 +112,8 @@ impl RoomSpawner {
             (Goblin, 10), (Orc, 1 + d),
             (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
             (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
-            (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10)
+            (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10),
+            (MagicMappingScroll, 400),
         ];
         self.table.extend(weights.into_iter());
     }
@@ -294,6 +297,23 @@ fn rations(ecs: &mut World, x: i32, y: i32) {
         .with(Named("Rations".to_string()))
         .with(Item {})
         .with(Nutritious {})
+        .with(Consumable {})
+        .marked::<SimpleMarker<SerializeMe>>()
+        .build();
+}
+
+fn magic_mapping_scroll(ecs: &mut World, x: i32, y: i32) {
+    ecs.create_entity()
+        .with(Position { x, y})
+        .with(Renderable { 
+            glyph: to_cp437(')'),
+            fg: CYAN,
+            bg: BLACK,
+            order: 2,
+        })
+        .with(Named("Scroll of Magic Mapping".to_owned()))
+        .with(Item {})
+        .with(MagicMapper {})
         .with(Consumable {})
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
