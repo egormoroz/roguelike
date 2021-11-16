@@ -31,7 +31,7 @@ pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
             glyph: to_cp437('@'), 
             fg: YELLOW, 
             bg: BLACK,
-            order: 0,
+            order: 1,
         })
         .with(Viewshed { range: 8, visible_tiles: smallvec![], dirty: true })
         .with(Player{})

@@ -21,3 +21,6 @@ pub fn letter_to_option(kc: KeyCode) -> i32 {
         _ => -1
     }
 }
+
+#[derive(Default, Clone, Copy)]
+pub struct DeltaTime(pub f32);

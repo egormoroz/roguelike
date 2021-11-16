@@ -1,10 +1,10 @@
 use std::io::Write;
-use macroquad::prelude::IVec2;
+use macroquad::prelude::{IVec2, get_frame_time};
 use specs::{prelude::*, saveload::SimpleMarkerAllocator};
 
 use crate::{
     comp::*, 
-    util::{GameLog, colors::*, to_cp437, Glyph },
+    util::{GameLog, colors::*, to_cp437, Glyph, DeltaTime },
     gui::{self, MainMenuSelection, UIState, GameOverResult}, 
     map::*, 
     player::*, 
@@ -35,8 +35,8 @@ pub struct State {
     ecs: World,
     ai_system: MonsterAI,
     item_use_system: ItemUseSystem,
+    particle_system: ParticleSystem,
     sorted_drawables: Vec<(Position, Renderable)>,
-    dirty: bool,
 }
 
 const MAP_WIDTH: i32 = 80;
@@ -49,13 +49,15 @@ impl State {
 
         ecs.insert(SimpleMarkerAllocator::<SerializeMe>::new());
         ecs.insert(RunState::UI(UIState::MainMenu(MainMenuSelection::NewGame)));
-        ecs.insert(GameLog::new());
+        ecs.insert(GameLog::default());
+        ecs.insert(ParticleBuilder::default());
+        ecs.insert(DeltaTime::default());
 
         Self { 
             screen, ecs, ai_system: MonsterAI::default(),
             item_use_system: ItemUseSystem::default(),
+            particle_system: ParticleSystem::default(),
             sorted_drawables: vec![],
-            dirty: true,
             spawner: RoomSpawner::new(1),
         }
     }
@@ -69,12 +71,14 @@ impl State {
         InventorySystem.run_now(&self.ecs);
         self.item_use_system.run_now(&self.ecs);
         ItemDropSystem.run_now(&self.ecs);
+        ParticleSpawnSystem.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
 
     fn render(&mut self) {
         self.screen.clear();
+        self.particle_system.update(&mut self.ecs);
 
         match *self.ecs.fetch::<RunState>() {
             RunState::UI(UIState::MainMenu(_)) | RunState::SaveGame 
@@ -88,15 +92,12 @@ impl State {
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
 
-        if self.dirty {
-            self.sorted_drawables.clear();
-            self.sorted_drawables.extend((&positions, &renderables)
-                .join()
-                .map(|(r, p)| (*r, *p))
-            );
-            self.sorted_drawables.sort_unstable_by_key(|(_, x)| x.order);
-            self.dirty = false;
-        }
+        self.sorted_drawables.clear();
+        self.sorted_drawables.extend((&positions, &renderables)
+            .join()
+            .map(|(r, p)| (*r, *p))
+        );
+        self.sorted_drawables.sort_unstable_by_key(|(_, x)| x.order);
 
         for (Position { x, y }, render) in self.sorted_drawables.iter().rev() {
             if map.tile_flags(*x, *y).visible {
@@ -108,11 +109,11 @@ impl State {
     }
 
     pub fn tick(&mut self) -> bool {
+        self.ecs.write_resource::<DeltaTime>().0 = get_frame_time() * 1000.;
         self.render();
 
         use RunState::*;
         let old_state = *self.ecs.fetch::<RunState>();
-        let mut do_cleanup = false;
         let new_state = match old_state {
             NewGame => {
                 self.reset();
@@ -125,12 +126,10 @@ impl State {
             AwaitingInput => handle_input(&mut self.ecs),
             PlayerTurn => {
                 self.run_systems();
-                do_cleanup = true;
                 MonsterTurn
             },
             MonsterTurn => {
                 self.run_systems();
-                do_cleanup = true;
                 AwaitingInput
             }
             SaveGame => {
@@ -150,10 +149,7 @@ impl State {
         };
         *self.ecs.write_resource::<RunState>() = new_state;
 
-        if do_cleanup {
-            DamageSystem::delete_the_dead(&mut self.ecs);
-            self.dirty = true;
-        }
+        DamageSystem::delete_the_dead(&mut self.ecs);
 
         self.screen.flush();
 
@@ -208,14 +204,12 @@ impl State {
         stats.hp = stats.max_hp.min(stats.hp + stats.max_hp / 2);
 
         *self.ecs.fetch_mut::<Map>() = new_map;
-        self.dirty = true;
 
         write!(self.ecs.fetch_mut::<GameLog>().new_entry(),
             "You descend to the next level, and take a moment to heal.").unwrap();
     }
 
     fn reset(&mut self) {
-        self.dirty = true;
         self.ecs.delete_all();
         {
             let mut log = self.ecs.fetch_mut::<GameLog>();
@@ -255,6 +249,10 @@ fn draw_map(map: &Map, s: &mut Screen) {
                 TileType::Floor => (floor_fg, to_cp437('.')),
                 TileType::Wall => (wall_fg, wall_glyph(map, x, y)),
                 TileType::DownStairs => (stairs_fg, to_cp437('>'))
+            };
+            let bg = match tile_status.bloodstained && tile_status.visible {
+                true => [0.75, 0., 0., 1.],
+                false => bg,
             };
             
             if !tile_status.visible { fg = greyscale(fg); }

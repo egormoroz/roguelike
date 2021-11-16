@@ -4,9 +4,10 @@ use specs::prelude::*;
 use crate::{
     comp::*, 
     map::Map, 
-    util::IRect,
+    util::{IRect, to_cp437, colors::*},
     state::RunState,
     alg::AStarPath,
+    systems::ParticleBuilder,
 };
 
 #[derive(Default)]
@@ -22,6 +23,7 @@ impl<'a> System<'a> for MonsterAI {
         ReadExpect<'a, IVec2>,
         ReadExpect<'a, RunState>,
         WriteExpect<'a, Map>,
+        WriteExpect<'a, ParticleBuilder>,
         ReadStorage<'a, Monster>,
         WriteStorage<'a, Confusion>,
         WriteStorage<'a, Viewshed>,
@@ -31,7 +33,8 @@ impl<'a> System<'a> for MonsterAI {
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, player, plp, state,
-            mut map, monster, mut confused, mut viewshed, 
+            mut map, mut particle_builder, monster, 
+            mut confused, mut viewshed, 
             mut pos, mut wants_to_melee) = data;
 
         match *state {
@@ -45,6 +48,7 @@ impl<'a> System<'a> for MonsterAI {
                 if confusion.turns <= 0 {
                     confused.remove(entity);
                 }
+                particle_builder.request(pos.x, pos.y, to_cp437('?'), MAGENTA, BLACK, 200.);
                 continue;
             }
 

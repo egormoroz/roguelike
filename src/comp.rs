@@ -40,11 +40,12 @@ pub fn register_all_components(ecs: &mut World) {
     ecs.register::<Equipped>();
     ecs.register::<AttackBonus>();
     ecs.register::<DefenseBonus>();
+    ecs.register::<ParticleLifetime>();
 
     ecs.register::<SimpleMarker<SerializeMe>>();
 }
 
-#[derive(Component, ConvertSaveload, Clone, Copy)]
+#[derive(Default, Component, ConvertSaveload, Clone, Copy)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -62,7 +63,7 @@ impl From<IVec2> for Position {
     }
 }
 
-#[derive(Component, ConvertSaveload, Clone, Copy)]
+#[derive(Default, Component, ConvertSaveload, Clone, Copy)]
 pub struct Renderable {
     pub glyph: Glyph,
     pub fg: [f32; 4],
@@ -213,5 +214,9 @@ pub struct DefenseBonus {
     pub defense: i32,
 }
 
+#[derive(Default, Component, Clone, Copy)]
+pub struct ParticleLifetime {
+    pub remaining_ms: f32,
+}
 
 pub struct SerializeMe {}

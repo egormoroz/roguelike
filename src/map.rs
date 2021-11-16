@@ -23,6 +23,7 @@ pub struct TileFlags {
     pub revealed: bool,
     pub visible: bool,
     pub blocked: bool,
+    pub bloodstained: bool,
 }
 
 

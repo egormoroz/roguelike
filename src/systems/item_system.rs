@@ -4,9 +4,10 @@ use smallvec::SmallVec;
 use specs::prelude::*;
 use crate:: {
     comp::*, 
-    util::GameLog, 
+    util::{GameLog, to_cp437, colors::*}, 
     map::Map,
-    alg::compute_fov
+    alg::compute_fov,
+    systems::ParticleBuilder
 };
 
 
@@ -55,12 +56,14 @@ impl<'a> System<'a> for ItemUseSystem {
         ReadExpect<'a, Map>,
         ReadExpect<'a, Entity>,
         WriteExpect<'a, GameLog>,
+        WriteExpect<'a, ParticleBuilder>,
         ReadStorage<'a, Named>,
         ReadStorage<'a, ProvidesHealing>,
         ReadStorage<'a, InflictsDamage>,
         ReadStorage<'a, Consumable>,
         ReadStorage<'a, AreaOfEffect>,
         ReadStorage<'a, Equippable>,
+        ReadStorage<'a, Position>,
         WriteStorage<'a, Confusion>,
         WriteStorage<'a, SufferDamage>,
         WriteStorage<'a, WantsToUseItem>,
@@ -70,10 +73,12 @@ impl<'a> System<'a> for ItemUseSystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (entities, map, player_entity, mut log, named, 
-            healers, inflicts_damage, consumables, aoe, 
-            equippable, mut confused, mut suffer_damage, 
-            mut wants_use, mut stats, mut equipped, mut backpacked) = data;
+        let (entities, map, player_entity, mut log, mut particle_builder,
+            named, healers, inflicts_damage, 
+            consumables, aoe, equippable, 
+            positions, mut confused, 
+            mut suffer_damage, mut wants_use, mut stats, 
+            mut equipped, mut backpacked) = data;
         let player_entity = *player_entity;
 
         for (user, useitem, stats) in (&entities, &wants_use, &mut stats).join() {
@@ -82,20 +87,25 @@ impl<'a> System<'a> for ItemUseSystem {
 
             if let UseTarget::Point(center) = useitem.target {
                 self.aoe_cache.clear();
+                let is_aoe;
                 if let Some(aoe) = aoe.get(useitem.item) {
                     compute_fov(IVec2::new(center.0, center.1), aoe.radius, 
                         &*map, |tile| self.aoe_cache.push((tile.x, tile.y)));
                     self.aoe_cache.sort_unstable();
                     self.aoe_cache.dedup();
+                    is_aoe = true;
                 } else {
                     self.aoe_cache.push(center);
+                    is_aoe = false;
                 }
                 
                 for (x, y) in self.aoe_cache.iter().cloned() {
                     // if !map.bounds().contains(x, y) { continue; }
                     for victim in map.tile_content(x, y) {
                         self.target_cache.push(*victim);
-                        
+                    }
+                    if is_aoe {
+                        particle_builder.request(x, y, to_cp437('░'), ORANGE, BLACK, 200.);
                     }
                 }
             } else if let UseTarget::User = useitem.target {
@@ -112,6 +122,10 @@ impl<'a> System<'a> for ItemUseSystem {
                             item_name, target_name, dmg.damage).unwrap()
                     }
                     used = true;
+
+                    if let Some(pos) = positions.get(*target) {
+                        particle_builder.request(pos.x, pos.y, to_cp437('‼'), RED, BLACK, 200.);
+                    }
                 }
 
                 if let Some(confusion) = confused.get(useitem.item).cloned() {
@@ -123,6 +137,10 @@ impl<'a> System<'a> for ItemUseSystem {
                             item_name, target_name).unwrap();
                     }
                     used = true;
+
+                    if let Some(pos) = positions.get(*target) {
+                        particle_builder.request(pos.x, pos.y, to_cp437('?'), MAGENTA, BLACK, 200.);
+                    }
                 }
 
                 if let Some(healer) = healers.get(useitem.item) {
@@ -132,6 +150,10 @@ impl<'a> System<'a> for ItemUseSystem {
                         let name = &named.get(useitem.item).unwrap().0;
                         write!(log.new_entry(), "You drink the {}, healing {} hp.", 
                             name, healer.heal_amount).unwrap();
+                    }
+
+                    if let Some(pos) = positions.get(user) {
+                        particle_builder.request(pos.x, pos.y, to_cp437('♥'), GREEN, BLACK, 200.);
                     }
                 } 
             

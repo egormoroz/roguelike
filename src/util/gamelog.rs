@@ -1,15 +1,13 @@
 use std::io::BufWriter;
 
 pub const MAX_ENTRY_LEN: usize = 128;
+
+#[derive(Default)]
 pub struct GameLog {
     entries: Vec<[u8; MAX_ENTRY_LEN]>,
 }
 
 impl GameLog {
-    pub fn new() -> Self {
-        Self { entries: vec![] }
-    }
-
     pub fn new_entry(&mut self) -> BufWriter<&mut [u8]> {
         self.entries.push([0; MAX_ENTRY_LEN]);
         BufWriter::new(&mut self.entries.last_mut().unwrap()[..])
