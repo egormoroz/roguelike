@@ -18,6 +18,7 @@ pub mod systems;
 pub mod state;
 pub mod player;
 pub mod random_table;
+pub mod map_builder;
 
 use macroquad::prelude::*;
 

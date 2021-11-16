@@ -1,18 +1,8 @@
 use std::io::Write;
-use macroquad::prelude::{IVec2, get_frame_time};
+use macroquad::prelude::get_frame_time;
 use specs::{prelude::*, saveload::SimpleMarkerAllocator};
 
-use crate::{
-    comp::*, 
-    util::{GameLog, colors::*, to_cp437, Glyph, DeltaTime },
-    gui::{self, MainMenuSelection, UIState, GameOverResult}, 
-    map::*, 
-    player::*, 
-    save_load, 
-    spawner::{self, RoomSpawner}, 
-    systems::*,
-    screen::Screen,
-};
+use crate::{comp::*, gui::{self, MainMenuSelection, UIState, GameOverResult}, map::*, map_builder::{MapBuilder, SimpleBuilder}, player::*, save_load, screen::Screen, spawner::{self, Spawner}, systems::*, util::{GameLog, colors::*, to_cp437, Glyph, DeltaTime }};
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +22,7 @@ pub enum RunState {
 
 pub struct State {
     screen: Screen,
-    spawner: RoomSpawner,
+    spawner: Spawner,
     ecs: World,
     ai_system: MonsterAI,
     item_use_system: ItemUseSystem,
@@ -59,7 +49,7 @@ impl State {
             item_use_system: ItemUseSystem::default(),
             particle_system: ParticleSystem::default(),
             sorted_drawables: vec![],
-            spawner: RoomSpawner::new(1),
+            spawner: Spawner::new(1),
         }
     }
 
@@ -201,16 +191,15 @@ impl State {
 
 
         let depth = self.ecs.fetch::<Map>().depth() + 1;
-        let new_map = Map::new(MAP_WIDTH, MAP_HEIGHT, depth);
-        self.spawner.set_depth(depth);
-        for room in new_map.rooms().iter().skip(1) {
-            self.spawner.spawn(&mut self.ecs, room);
-        }
+        let mut builder = SimpleBuilder::new(MAP_WIDTH, MAP_HEIGHT, depth);
+        builder.generate();
+        builder.spawn(&mut self.ecs, &mut self.spawner);
+        let plp = builder.player_pos();
+        let new_map = builder.build();
 
-        let (plx, ply) = new_map.rooms()[0].center();
-        self.ecs.insert(IVec2::new(plx, ply));
+        self.ecs.insert(plp);
         self.ecs.write_storage::<Position>()
-            .insert(player_entity, Position { x: plx, y: ply })
+            .insert(player_entity, plp.into())
             .expect("failed to insert player position");
         self.ecs.write_storage::<Viewshed>()
             .get_mut(player_entity)
@@ -237,17 +226,15 @@ impl State {
             write!(log.new_entry(), "Hello world").unwrap();
         }
 
-        let map = Map::new(MAP_WIDTH, MAP_HEIGHT, 1);
-        let (x, y) = map.rooms()[0].center();
-        self.ecs.insert(IVec2::new(x, y));
+        let mut builder = SimpleBuilder::new(MAP_WIDTH, MAP_HEIGHT, 1);
+        builder.generate();
+        builder.spawn(&mut self.ecs, &mut self.spawner);
+        let plp = builder.player_pos();
+        let map = builder.build();
+        self.ecs.insert(plp);
 
-        let player_entity = spawner::player(&mut self.ecs, x, y);
+        let player_entity = spawner::player(&mut self.ecs, plp.x, plp.y);
         self.ecs.insert(player_entity);
-
-        self.spawner.set_depth(1);
-        for room in map.rooms().iter().skip(1) {
-            self.spawner.spawn(&mut self.ecs, room);
-        }
         self.ecs.insert(map);
     }
 }

@@ -1,9 +1,7 @@
-use rand::{thread_rng, Rng};
 use specs::{prelude::*, saveload::{MarkedBuilder, SimpleMarker}};
 use smallvec::smallvec;
 use super::{
     comp::*,
-    util::IRect,
     util::Glyph,
     util::to_cp437,
     util::colors::*,
@@ -27,6 +25,61 @@ enum SpawnOption {
     BearTrap,
 }
 
+pub struct Spawner {
+    table: RandomTable<SpawnOption>,
+    depth: i32,
+}
+
+impl Spawner {
+    pub fn new(depth: i32) -> Self {
+        let mut inst = Self { 
+            table: RandomTable::new(), 
+            depth 
+        };
+        inst.update_table();
+        inst
+    }
+
+    pub fn spawn(&mut self, ecs: &mut World, x: i32, y: i32) {
+        use SpawnOption::*;
+        match *self.table.roll() {
+            Goblin => goblin(ecs, x, y),
+            Orc => orc(ecs, x, y),
+            HealthPotion => health_potion(ecs, x, y),
+            FireballScroll => fireball_scroll(ecs, x, y),
+            ConfusionScroll => confusion_scroll(ecs, x, y),
+            MagicMissileScroll => magic_missile_scroll(ecs, x, y),
+            Dagger => dagger(ecs, x, y),
+            Shield => shield(ecs, x, y),
+            LongSword => longsword(ecs, x, y),
+            TowerShield => tower_shield(ecs, x, y),
+            Rations => rations(ecs, x, y),
+            MagicMappingScroll => magic_mapping_scroll(ecs, x, y),
+            BearTrap => bear_trap(ecs, x, y),
+        }
+    }
+
+    pub fn set_depth(&mut self, depth: i32) {
+        if depth == self.depth { return; }
+        self.depth = depth;
+        self.update_table();
+    }
+
+    fn update_table(&mut self) {
+        use SpawnOption::*;
+        let d = self.depth;
+        let weights = [
+            (Goblin, 10), (Orc, 1 + d),
+            (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
+            (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
+            (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10),
+            (MagicMappingScroll, 2), (BearTrap, 5),
+        ];
+        self.table.clear();
+        self.table.extend(weights.into_iter());
+    }
+}
+
 pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
     ecs.create_entity()
         .with(Position { x, y })
@@ -43,82 +96,6 @@ pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
         .with(HungerClock { state: HungerState::WellFed, duration: 20 })
         .marked::<SimpleMarker<SerializeMe>>()
         .build()
-}
-
-const MAX_DEPTH1_SPAWNS: i32 = 4;
-
-pub struct RoomSpawner {
-    spawn_points: Vec<(i32, i32)>,
-    table: RandomTable<SpawnOption>,
-    depth: i32,
-}
-
-impl RoomSpawner {
-    pub fn new(depth: i32) -> Self {
-        let mut inst = Self { 
-            spawn_points: vec![], 
-            table: RandomTable::new(), 
-            depth 
-        };
-        inst.update_table();
-        inst
-    }
-
-    pub fn spawn(&mut self, ecs: &mut World, room: &IRect) {
-        let mut rng = thread_rng();
-        let num_spawns = rng.gen_range(1..=MAX_DEPTH1_SPAWNS + self.depth);
-        self.spawn_points.clear();
-        self.spawn_points.reserve(num_spawns as usize);
-
-        for _ in 1..=num_spawns {
-            loop {
-                let x = rng.gen_range(room.x..=room.xx);
-                let y = rng.gen_range(room.y..=room.yy);
-                if !self.spawn_points.contains(&(x, y)) { 
-                    self.spawn_points.push((x, y));
-                    break;
-                }
-            }
-        }
-
-        for (x, y) in self.spawn_points.iter().cloned() {
-            use SpawnOption::*;
-            match *self.table.roll() {
-                Goblin => goblin(ecs, x, y),
-                Orc => orc(ecs, x, y),
-                HealthPotion => health_potion(ecs, x, y),
-                FireballScroll => fireball_scroll(ecs, x, y),
-                ConfusionScroll => confusion_scroll(ecs, x, y),
-                MagicMissileScroll => magic_missile_scroll(ecs, x, y),
-                Dagger => dagger(ecs, x, y),
-                Shield => shield(ecs, x, y),
-                LongSword => longsword(ecs, x, y),
-                TowerShield => tower_shield(ecs, x, y),
-                Rations => rations(ecs, x, y),
-                MagicMappingScroll => magic_mapping_scroll(ecs, x, y),
-                BearTrap => bear_trap(ecs, x, y),
-            }
-        }
-    }
-
-    pub fn set_depth(&mut self, depth: i32) {
-        self.depth = depth;
-        self.update_table();
-    }
-
-    fn update_table(&mut self) {
-        use SpawnOption::*;
-        let d = self.depth;
-        let weights = [
-            (Goblin, 10), (Orc, 1 + d),
-            (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
-            (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
-            (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10),
-            (MagicMappingScroll, 2), (BearTrap, 200),
-        ];
-        self.table.clear();
-        self.table.extend(weights.into_iter());
-    }
 }
 
 fn orc(ecs: &mut World, x: i32, y: i32) {

@@ -31,6 +31,7 @@ impl<'a> System<'a> for HungerSystem {
             };
             hc.duration -= 1;
             if hc.duration > 0 { continue; }
+            hc.duration = 200;
 
             use HungerState::*;
             let old_state = hc.state;
@@ -39,11 +40,11 @@ impl<'a> System<'a> for HungerSystem {
                 Normal => Hungry,
                 Hungry => Starving,
                 Starving => {
+                    hc.duration = 20;
                     SufferDamage::new_damage(&mut suffer_damage, e, 1);
                     Starving
                 }
             };
-            hc.duration = 200;
             hc.state = new_state;
 
             if player.is_some() {

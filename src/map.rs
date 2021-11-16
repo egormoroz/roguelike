@@ -31,7 +31,6 @@ pub struct TileFlags {
 pub struct Map {
     tiles: Grid<TileType>,
     tile_flags: Grid<TileFlags>,
-    rooms: Vec<IRect>,
     depth: i32,
 
     #[serde(skip_serializing)]
@@ -40,44 +39,15 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn new(width: i32, height: i32, depth: i32) -> Self {
+    pub fn from_grid(tiles: Grid<TileType>, depth: i32) -> Self {
+        let (width, height) = (tiles.width(), tiles.height());
         let mut inst = Self {
-            tiles: Grid::new(width, height, TileType::Wall),
+            tiles, depth,
             tile_flags: Grid::new(width, height, TileFlags::default()),
-            rooms: vec![],
             tile_content: Grid::new(width, height, vec![]),
-            depth,
         };
-
-        let rooms = vec![
-            IRect::new(5, 5, 10, 10),
-            IRect::new(3, 20, 12, 15),
-            IRect::new(20, 25, 20, 12),
-            IRect::new(18, 8, 20, 15),
-            IRect::new(50, 2, 10, 10),
-            IRect::new(48, 20, 20, 10),
-            IRect::new(60, 35, 15, 6),
-        ];
-
-        for r in &rooms {
-            inst.create_room(r);
-        }
-
-        for (r1, r2) in rooms.iter().zip(rooms.iter().skip(1)) {
-            let (c1, c2) = (r1.center(), r2.center());
-            inst.create_corridor(c1.0, c1.1, c2.0, c2.1);
-        }
-
-        let (x, y) = rooms.last().unwrap().center();
-        inst.set_tile(x, y, TileType::DownStairs);
-
-        inst.rooms = rooms;
         inst.populate_blocked();
         inst
-    }
-
-    pub fn rooms(&self) -> &[IRect] {
-        &self.rooms
     }
 
     pub fn realloc_content_index(&mut self) {
@@ -104,24 +74,6 @@ impl Map {
 
     pub fn tile(&self, x: i32, y: i32) -> TileType {
         *self.tiles.get(x, y)
-    }
-
-    pub fn create_room(&mut self, r: &IRect) {
-        for y in r.y..=r.yy {
-            for x in r.x..=r.xx {
-                self.set_tile(x, y, TileType::Floor);
-            }
-        }
-    }
-
-    pub fn create_corridor(&mut self, x: i32, y: i32, xx: i32, yy: i32) {
-        for x in x.min(xx)..=x.max(xx) {
-            self.set_tile(x, y, TileType::Floor);
-        }
-
-        for y in y.min(yy)..=y.max(yy) {
-            self.set_tile(x.max(xx), y, TileType::Floor);
-        }
     }
 
     pub fn bounds(&self) -> IRect {
