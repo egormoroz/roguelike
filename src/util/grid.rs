@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::slice::{Iter, IterMut};
 
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Grid<T: Clone> {
     data: Vec<T>,
     width: i32,
@@ -48,5 +48,13 @@ impl<T: Clone> Grid<T> {
     fn xy_idx(&self, x: i32, y: i32) -> usize {
         debug_assert!(x >= 0 && y >= 0);
         (y * self.width + x) as usize
+    }
+}
+
+impl<T: Clone> Default for Grid<T> {
+    fn default() -> Self {
+        Self {
+            data: vec![], width: 0, height: 0
+        }
     }
 }

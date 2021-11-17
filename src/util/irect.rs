@@ -18,10 +18,10 @@ impl IRect {
     pub fn width(&self) -> i32 { self.xx - self.x + 1 }
     pub fn height(&self) -> i32 { self.yy - self.y + 1 }
 
-    // pub fn intersects(&self, other: &Rect) -> bool {
-    //     self.x <= other.xx && self.xx >= other.x 
-    //         && self.y <= other.yy && self.yy >= other.y
-    // }
+    pub fn overlaps(&self, other: &IRect) -> bool {
+        self.x <= other.xx && self.xx >= other.x 
+            && self.y <= other.yy && self.yy >= other.y
+    }
 
     pub fn contains(&self, x: i32, y: i32) -> bool {
         self.x <= x && self.y <= y 

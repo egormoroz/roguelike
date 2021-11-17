@@ -7,6 +7,8 @@ pub struct SimpleBuilder {
     rooms: Vec<IRect>,
     plp: IVec2,
     depth: i32,
+
+    room_idx: i32,
 }
 
 impl SimpleBuilder {
@@ -16,8 +18,10 @@ impl SimpleBuilder {
             depth,
             plp: IVec2::new(0, 0),
             rooms: vec![],
+            room_idx: 0,
         }
     }
+    
 
     fn create_room(&mut self, r: &IRect) {
         for y in r.y..=r.yy {
@@ -33,39 +37,51 @@ impl SimpleBuilder {
         }
 
         for y in y.min(yy)..=y.max(yy) {
-            *self.tiles.get_mut(x.max(xx), y) = TileType::Floor;
+            *self.tiles.get_mut(xx, y) = TileType::Floor;
         }
     }
 }
 
+
 impl MapBuilder for SimpleBuilder {
-    fn generate(&mut self) {
-        let rooms = vec![
-            IRect::new(5, 5, 10, 10),
-            IRect::new(3, 20, 12, 15),
-            IRect::new(20, 25, 20, 12),
-            IRect::new(18, 8, 20, 15),
-            IRect::new(50, 2, 10, 10),
-            IRect::new(48, 20, 20, 10),
-            IRect::new(60, 35, 15, 6)
-        ];
+    fn progress(&mut self) -> bool {
+        const MAX_ROOMS: i32 = 30;
+        const MIN_SIZE: i32 = 6;
+        const MAX_SIZE: i32 = 10;
 
-        let (x, y) = rooms[0].center();
-        self.plp = IVec2::new(x, y);
+        let mut rng = thread_rng();
+        let w = rng.gen_range(MIN_SIZE..=MAX_SIZE);
+        let h = rng.gen_range(MIN_SIZE..=MAX_SIZE);
+        let x = rng.gen_range(2..self.tiles.width() - 2 - w);
+        let y = rng.gen_range(2..self.tiles.height() - 2 - h);
 
-        for r in &rooms {
-            self.create_room(r);
+        let new_room = IRect::new(x, y, w, h);
+        if self.rooms.iter().find(|&r| r.overlaps(&new_room)).is_none() {
+            self.create_room(&new_room);
+            if let Some(prev) = self.rooms.last() {
+                let ((x, y), (xx, yy)) = (prev.center(), new_room.center());
+                if rng.gen() {
+                    self.create_corridor(x, y, xx, yy);
+                } else {
+                    self.create_corridor(xx, yy, x, y);
+                }
+            }
+            self.rooms.push(new_room);
         }
 
-        for (r1, r2) in rooms.iter().zip(rooms.iter().skip(1)) {
-            let ((x, y), (xx, yy)) = (r1.center(), r2.center());
-            self.create_corridor(x, y, xx, yy);
-        }
 
-        let (x, y) = rooms.last().unwrap().center();
-        *self.tiles.get_mut(x, y) = TileType::DownStairs;
-        self.rooms = rooms;
+        if self.room_idx >= MAX_ROOMS {
+            let (x, y) = self.rooms.last().unwrap().center();
+            *self.tiles.get_mut(x, y) = TileType::DownStairs;
+            let (x, y) = self.rooms[0].center();
+            self.plp = IVec2::new(x, y);
+            true
+        } else {
+            self.room_idx += 1;
+            false
+        }
     }
+
 
     fn spawn(&self, ecs: &mut World, spawner: &mut Spawner) {
         const MAX_DEPTH1_SPAWNS: i32 = 4;
@@ -93,6 +109,10 @@ impl MapBuilder for SimpleBuilder {
         }
     }
 
+    fn intermediate(&self) -> IntermediateMap { 
+        IntermediateMap { tiles: &self.tiles }
+    }
+
     fn player_pos(&self) -> IVec2 { self.plp }
-    fn build(self) -> Map { Map::from_grid(self.tiles, self.depth) }
+    fn build(&mut self) -> Map { Map::from_grid(std::mem::take(&mut self.tiles), self.depth) }
 }

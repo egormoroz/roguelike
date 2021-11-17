@@ -5,7 +5,7 @@ use std::io::Write;
 
 use super::*;
 use crate::{
-    map::Map,
+    map::{Map, ViewMap},
     screen::Screen,
     state::RunState,
     save_load,

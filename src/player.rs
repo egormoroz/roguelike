@@ -4,7 +4,7 @@ use specs::prelude::*;
 use crate::{
     comp::*, 
     util::GameLog, 
-    map::{Map, TileType}, 
+    map::{Map, TileType, ViewMap}, 
     state::RunState,
     gui::UIState,
 };

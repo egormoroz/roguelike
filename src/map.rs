@@ -11,6 +11,8 @@ use super::{
     alg::BaseMap,
 };
 
+pub use crate::draw_map::ViewMap;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TileType {
     Floor,
@@ -72,18 +74,6 @@ impl Map {
         *self.tiles.get_mut(x, y) = tile;
     }
 
-    pub fn tile(&self, x: i32, y: i32) -> TileType {
-        *self.tiles.get(x, y)
-    }
-
-    pub fn bounds(&self) -> IRect {
-        IRect::new(0, 0, self.tiles.width(), self.tiles.height())
-    }
-
-    pub fn tile_flags(&self, x: i32, y: i32) -> TileFlags {
-        *self.tile_flags.get(x, y)
-    }
-
     pub fn tile_flags_mut(&mut self, x: i32, y: i32) -> &mut TileFlags {
         self.tile_flags.get_mut(x, y)
     }
@@ -111,13 +101,27 @@ impl Map {
     }
 }
 
+impl ViewMap for Map {
+    fn tile(&self, x: i32, y: i32) -> &TileType {
+        self.tiles.get(x, y)
+    }
+
+    fn bounds(&self) -> IRect {
+        IRect::new(0, 0, self.tiles.width(), self.tiles.height())
+    }
+
+    fn tile_flags(&self, x: i32, y: i32) -> &TileFlags {
+        self.tile_flags.get(x, y)
+    }
+}
+
 impl BaseMap for Map {
     fn size(&self) -> IVec2 {
         IVec2::new(self.tiles.width(), self.tiles.height())
     }
 
     fn is_opaque(&self, pos: IVec2) -> bool {
-        self.tile(pos.x, pos.y) == TileType::Wall
+        self.tile(pos.x, pos.y) == &TileType::Wall
     }
 
     fn successors(&self, pos: IVec2) -> SmallVec<[(IVec2, f32); 8]> {

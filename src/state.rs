@@ -2,8 +2,25 @@ use std::io::Write;
 use macroquad::prelude::get_frame_time;
 use specs::{prelude::*, saveload::SimpleMarkerAllocator};
 
-use crate::{comp::*, gui::{self, MainMenuSelection, UIState, GameOverResult}, map::*, map_builder::{MapBuilder, SimpleBuilder}, player::*, save_load, screen::Screen, spawner::{self, Spawner}, systems::*, util::{GameLog, colors::*, to_cp437, Glyph, DeltaTime }};
+use crate::{
+    comp::*, 
+    gui::{self, MainMenuSelection, UIState, GameOverResult}, 
+    map::*, 
+    map_builder::{MapBuilder, SimpleBuilder}, 
+    player::*, 
+    save_load, 
+    screen::Screen, 
+    spawner::{self, Spawner}, 
+    systems::*, 
+    util::*,
+    draw_map::*,
+};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MapGenFinish {
+    NextLevel,
+    Reset,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunState {
@@ -17,7 +34,8 @@ pub enum RunState {
     Quit,
     NextLevel,
     GameOver,
-    MagicMapReveal { row: i32 }
+    MagicMapReveal { row: i32 },
+    GeneratingMap(MapGenFinish),
 }
 
 pub struct State {
@@ -28,6 +46,8 @@ pub struct State {
     item_use_system: ItemUseSystem,
     particle_system: ParticleSystem,
     sorted_drawables: Vec<(Position, Renderable)>,
+    map_builder: Option<Box<dyn MapBuilder>>,
+    mapgen_timer: f32,
 }
 
 const MAP_WIDTH: i32 = 80;
@@ -50,6 +70,8 @@ impl State {
             particle_system: ParticleSystem::default(),
             sorted_drawables: vec![],
             spawner: Spawner::new(1),
+            map_builder: None,
+            mapgen_timer: 0.
         }
     }
 
@@ -73,14 +95,21 @@ impl State {
         self.screen.clear();
         self.particle_system.update(&mut self.ecs);
 
-        match *self.ecs.fetch::<RunState>() {
-            RunState::UI(UIState::MainMenu(_)) | RunState::SaveGame 
-                | RunState::GameOver | RunState::NewGame => return,
+        let state = *self.ecs.fetch::<RunState>();
+        match state {
+            RunState::UI(UIState::MainMenu(_)) | RunState::SaveGame | RunState::GameOver 
+                | RunState::NewGame => return,
             _ => (),
         };
 
+        if let RunState::GeneratingMap(_) = state {
+            let map = self.map_builder.as_ref().unwrap().intermediate();
+            draw_map(&map, &mut self.screen);
+            return;
+        }
+
         let map = self.ecs.fetch::<Map>();
-        draw_map(&map, &mut self.screen);
+        draw_map(&*map, &mut self.screen);
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
@@ -103,16 +132,14 @@ impl State {
     }
 
     pub fn tick(&mut self) -> bool {
-        self.ecs.write_resource::<DeltaTime>().0 = get_frame_time() * 1000.;
+        let dt = get_frame_time() * 1000.;
+        self.ecs.write_resource::<DeltaTime>().0 = dt;
         self.render();
 
         use RunState::*;
         let old_state = *self.ecs.fetch::<RunState>();
         let new_state = match old_state {
-            NewGame => {
-                self.reset();
-                PreRun
-            }
+            NewGame => self.reset(),
             PreRun => {
                 self.run_systems();
                 AwaitingInput
@@ -135,10 +162,7 @@ impl State {
             },
             UI(state) => gui::handle_state(state, &mut self.ecs, &mut self.screen),
             Quit => Quit,
-            NextLevel => {
-                self.goto_next_level();
-                PreRun
-            },
+            NextLevel => self.goto_next_level(),
             GameOver => match gui::game_over(&mut self.screen) {
                 GameOverResult::Idle => GameOver,
                 GameOverResult::Quit => RunState::UI(UIState::MainMenu(MainMenuSelection::NewGame))
@@ -155,6 +179,23 @@ impl State {
                 } else {
                     MagicMapReveal { row: row + 1 }
                 }
+            },
+            GeneratingMap(finish) if self.mapgen_timer < 0. => {
+                self.mapgen_timer = 200.;
+                if self.map_builder.as_mut().unwrap().progress() {
+                    self.gen_world_finish();
+                    match finish {
+                        MapGenFinish::NextLevel => self.goto_next_level_finish(),
+                        MapGenFinish::Reset => (),
+                    };
+                    PreRun
+                } else {
+                    GeneratingMap(finish)
+                }
+            }
+            state @ GeneratingMap(_) => {
+                self.mapgen_timer -= dt;
+                state
             }
         };
         *self.ecs.write_resource::<RunState>() = new_state;
@@ -166,7 +207,7 @@ impl State {
         new_state != Quit
     }
 
-    fn goto_next_level(&mut self) {
+    fn goto_next_level(&mut self) -> RunState {
         let mut to_delete = vec![];
         let player_entity = *self.ecs.fetch::<Entity>();
         {
@@ -186,39 +227,24 @@ impl State {
                 to_delete.push(e);
             }
         }
-
         self.ecs.delete_entities(&to_delete).expect("failed to delete entities");
-
-
         let depth = self.ecs.fetch::<Map>().depth() + 1;
-        let mut builder = SimpleBuilder::new(MAP_WIDTH, MAP_HEIGHT, depth);
-        builder.generate();
-        builder.spawn(&mut self.ecs, &mut self.spawner);
-        let plp = builder.player_pos();
-        let new_map = builder.build();
+        self.gen_world(depth);
+        RunState::GeneratingMap(MapGenFinish::NextLevel)
+    }
 
-        self.ecs.insert(plp);
-        self.ecs.write_storage::<Position>()
-            .insert(player_entity, plp.into())
-            .expect("failed to insert player position");
-        self.ecs.write_storage::<Viewshed>()
-            .get_mut(player_entity)
-            .expect("player doesn't have Viewshed??")
-            .dirty = true;
-
-        
+    fn goto_next_level_finish(&mut self) {
+        let player_entity = *self.ecs.fetch::<Entity>();
         let mut stats = self.ecs.write_storage::<CombatStats>();
         let stats = stats.get_mut(player_entity)
             .expect("player doesn't have CombatStats??");
         stats.hp = stats.max_hp.min(stats.hp + stats.max_hp / 2);
 
-        *self.ecs.fetch_mut::<Map>() = new_map;
-
         write!(self.ecs.fetch_mut::<GameLog>().new_entry(),
             "You descend to the next level, and take a moment to heal.").unwrap();
     }
 
-    fn reset(&mut self) {
+    fn reset(&mut self) -> RunState {
         self.ecs.delete_all();
         {
             let mut log = self.ecs.fetch_mut::<GameLog>();
@@ -226,61 +252,31 @@ impl State {
             write!(log.new_entry(), "Hello world").unwrap();
         }
 
-        let mut builder = SimpleBuilder::new(MAP_WIDTH, MAP_HEIGHT, 1);
-        builder.generate();
+        self.gen_world(1);
+        RunState::GeneratingMap(MapGenFinish::Reset)
+    }
+
+    fn gen_world(&mut self, depth: i32) {
+        self.map_builder = Some(Box::new(SimpleBuilder::new(MAP_WIDTH, MAP_HEIGHT, depth)));
+    }
+
+    fn gen_world_finish(&mut self) {
+        let mut builder = self.map_builder.take().unwrap();
         builder.spawn(&mut self.ecs, &mut self.spawner);
         let plp = builder.player_pos();
         let map = builder.build();
         self.ecs.insert(plp);
-
-        let player_entity = spawner::player(&mut self.ecs, plp.x, plp.y);
-        self.ecs.insert(player_entity);
         self.ecs.insert(map);
-    }
-}
 
-fn draw_map(map: &Map, s: &mut Screen) {
-    let bg = BLACK;
-    let floor_fg = [0.0, 0.5, 0.5, 1.0];
-    let wall_fg = [0.0, 1.0, 0.0, 1.0];
-    let stairs_fg = VIOLET;
-
-    let bounds = map.bounds();
-
-    for y in 0..bounds.height() {
-        for x in 0..bounds.width() {
-            let tile_status = map.tile_flags(x, y);
-            if !tile_status.revealed { continue; }
-
-            let (mut fg, glyph) = match map.tile(x, y) {
-                TileType::Floor => (floor_fg, to_cp437('.')),
-                TileType::Wall => (wall_fg, wall_glyph(map, x, y)),
-                TileType::DownStairs => (stairs_fg, to_cp437('>'))
-            };
-            let bg = match tile_status.bloodstained && tile_status.visible {
-                true => [0.75, 0., 0., 1.],
-                false => bg,
-            };
-            
-            if !tile_status.visible { fg = greyscale(fg); }
-            s.draw_glyph(x, y, glyph, fg, bg);
+        if !self.ecs.read_storage::<Player>().is_empty() {
+            let player_entity = *self.ecs.fetch::<Entity>();
+            *self.ecs.write_storage::<Position>()
+                .get_mut(player_entity).unwrap() = Position { x: plp.x, y: plp.y };
+            self.ecs.write_storage::<Viewshed>()
+                .get_mut(player_entity).unwrap().dirty = true;
+        } else {
+            let player_entity = spawner::player(&mut self.ecs, plp.x, plp.y);
+            self.ecs.insert(player_entity);
         }
     }
-}
-
-fn wall_glyph(map: &Map, x: i32, y: i32) -> Glyph {
-    let bounds = map.bounds();
-    if x < 1 || y < 1 || x >= bounds.xx || y >= bounds.yy { return 35; }
-    
-    let mut mask = 0;
-    let test = |x, y| map.tile_flags(x, y).revealed 
-        && map.tile(x, y) == TileType::Wall;
-
-    if test(x, y - 1) { mask |= 1; }
-    if test(x, y + 1) { mask |= 2; }
-    if test(x - 1, y) { mask |= 4; }
-    if test(x + 1, y) { mask |= 8; }
-
-    [9, 186, 186, 186, 205, 188, 187, 185, 205, 200, 201,
-     204, 205, 202, 203, 206][mask]
 }
