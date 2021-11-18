@@ -1,4 +1,5 @@
 use macroquad::math::IVec2;
+use smallvec::SmallVec;
 use super::BaseMap;
 
 use std::{
@@ -37,6 +38,48 @@ pub struct AStarPath {
 impl AStarPath {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn compute_generic<H, S>(&mut self, from: IVec2, mut to: IVec2, 
+        heuristic: &mut H, successors: &mut S) 
+    where
+        H: FnMut(IVec2, IVec2) -> f32,
+        S: FnMut(IVec2) -> SmallVec<[(IVec2, f32); 8]>,
+    {
+        self.to_see.clear();
+        self.seen.clear();
+        self.path.clear();
+
+        self.to_see.push(Step {
+            cost: 0.,
+            successor: from,
+        });
+        self.seen.insert(from, (from, 0.));
+
+        while let Some(Step { successor, cost }) = self.to_see.pop() {
+            if successor == to { break; }
+            let c = self.cost_to(successor);
+            if cost > c + heuristic(successor, to) { continue; }
+
+            for (n, d) in successors(successor) {
+                if c + d < self.cost_to(n) {
+                    self.seen.insert(n, (successor, c + d));
+                    self.to_see.push(Step { 
+                        cost: c + d + heuristic(n, to),
+                        successor: n,
+                    });
+                }
+            }
+        }
+
+        if let Some((_, cost)) = self.seen.get(&to) {
+            self.path.push((to, *cost));
+            while let Some(x) = self.seen.get(&to) {
+                self.path.push(*x);
+                to = x.0;
+                if to == from { break; }
+            }
+        }
     }
 
     pub fn compute<M: BaseMap>(&mut self, map: &M, from: IVec2, mut to: IVec2) {

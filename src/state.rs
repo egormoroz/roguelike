@@ -257,7 +257,7 @@ impl State {
     }
 
     fn gen_world(&mut self, depth: i32) {
-        self.map_builder = Some(Box::new(BSP::new(MAP_WIDTH, MAP_HEIGHT, depth)));
+        self.map_builder = Some(Box::new(BSPGen::new(MAP_WIDTH, MAP_HEIGHT, depth)));
     }
 
     fn gen_world_finish(&mut self) {

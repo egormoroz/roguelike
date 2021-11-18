@@ -42,11 +42,10 @@ pub fn draw_map<M: ViewMap>(map: &M, s: &mut Screen) {
 
 fn wall_glyph<M: ViewMap>(map: &M, x: i32, y: i32) -> Glyph {
     let bounds = map.bounds();
-    if x < 1 || y < 1 || x >= bounds.xx || y >= bounds.yy { return 35; }
     
     let mut mask = 0;
-    let test = |x, y| map.tile_flags(x, y).revealed 
-        && map.tile(x, y) == &TileType::Wall;
+    let test = |x, y| !bounds.contains(x, y) ||
+        map.tile_flags(x, y).revealed && map.tile(x, y) == &TileType::Wall;
 
     if test(x, y - 1) { mask |= 1; }
     if test(x, y + 1) { mask |= 2; }
