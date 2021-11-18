@@ -7,7 +7,10 @@ use crate::{
 };
 
 mod simple;
+mod bsp;
+
 pub use simple::*;
+pub use bsp::*;
 
 const FLAGS: TileFlags = TileFlags {
     visible: true,

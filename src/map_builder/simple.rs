@@ -24,8 +24,8 @@ impl SimpleBuilder {
     
 
     fn create_room(&mut self, r: &IRect) {
-        for y in r.y..=r.yy {
-            for x in r.x..=r.xx {
+        for y in r.y + 1..r.yy {
+            for x in r.x + 1..r.xx {
                 *self.tiles.get_mut(x, y) = TileType::Floor;
             }
         }
@@ -94,8 +94,8 @@ impl MapBuilder for SimpleBuilder {
         for room in self.rooms.iter().skip(1) {
             for _ in 1..=num_spawns {
                 loop {
-                    let x = rng.gen_range(room.x..=room.xx);
-                    let y = rng.gen_range(room.y..=room.yy);
+                    let x = rng.gen_range(room.x + 1..room.xx);
+                    let y = rng.gen_range(room.y + 1..room.yy);
                     if !spawn_points.contains(&(x, y)) { 
                         spawn_points.push((x, y));
                         break;

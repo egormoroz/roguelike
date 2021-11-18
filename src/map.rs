@@ -28,6 +28,15 @@ pub struct TileFlags {
     pub bloodstained: bool,
 }
 
+impl TileFlags {
+    pub fn revealed() -> Self {
+        Self {
+            revealed: true,
+            ..Default::default()
+        }
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Map {
@@ -45,7 +54,7 @@ impl Map {
         let (width, height) = (tiles.width(), tiles.height());
         let mut inst = Self {
             tiles, depth,
-            tile_flags: Grid::new(width, height, TileFlags::default()),
+            tile_flags: Grid::new(width, height, TileFlags::revealed()),
             tile_content: Grid::new(width, height, vec![]),
         };
         inst.populate_blocked();

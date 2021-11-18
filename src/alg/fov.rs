@@ -165,8 +165,8 @@ impl Row {
         let start = self.start_slope.mult(self.depth).round_ties_up()
             .max(-d);
         let end = self.end_slope.mult(self.depth).round_ties_down()
-            .min(d) + 1;
-        start..end
+            .min(d);
+        start..(end + 1)
     }
 
     fn next(&self) -> Self {

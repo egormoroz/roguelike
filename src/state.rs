@@ -6,7 +6,7 @@ use crate::{
     comp::*, 
     gui::{self, MainMenuSelection, UIState, GameOverResult}, 
     map::*, 
-    map_builder::{MapBuilder, SimpleBuilder}, 
+    map_builder::*, 
     player::*, 
     save_load, 
     screen::Screen, 
@@ -181,7 +181,7 @@ impl State {
                 }
             },
             GeneratingMap(finish) if self.mapgen_timer < 0. => {
-                self.mapgen_timer = 200.;
+                self.mapgen_timer = 100.;
                 if self.map_builder.as_mut().unwrap().progress() {
                     self.gen_world_finish();
                     match finish {
@@ -257,7 +257,7 @@ impl State {
     }
 
     fn gen_world(&mut self, depth: i32) {
-        self.map_builder = Some(Box::new(SimpleBuilder::new(MAP_WIDTH, MAP_HEIGHT, depth)));
+        self.map_builder = Some(Box::new(BSP::new(MAP_WIDTH, MAP_HEIGHT, depth)));
     }
 
     fn gen_world_finish(&mut self) {
