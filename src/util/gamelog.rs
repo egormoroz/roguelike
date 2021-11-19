@@ -1,4 +1,4 @@
-use std::io::BufWriter;
+use std::io::Cursor;
 
 pub const MAX_ENTRY_LEN: usize = 128;
 
@@ -8,9 +8,9 @@ pub struct GameLog {
 }
 
 impl GameLog {
-    pub fn new_entry(&mut self) -> BufWriter<&mut [u8]> {
+    pub fn new_entry(&mut self) -> Cursor<&mut [u8]> {
         self.entries.push([0; MAX_ENTRY_LEN]);
-        BufWriter::new(&mut self.entries.last_mut().unwrap()[..])
+        Cursor::new(&mut self.entries.last_mut().unwrap()[..])
     }
 
     pub fn last_entries(&self, n: usize) -> impl Iterator<Item = &str> {

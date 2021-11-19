@@ -1,7 +1,10 @@
 mod menu;
 mod ui_state;
+use std::io::Write;
+use std::io::Cursor;
 
 use macroquad::prelude::{IVec2, KeyCode, get_last_key_pressed};
+use smallvec::SmallVec;
 pub use menu::*;
 pub use ui_state::*;
 
@@ -62,22 +65,11 @@ pub fn draw_ui(ecs: &World, s: &mut Screen) {
     s.draw_text(71, 42, fg, BLACK, text);
 }
 
-
 pub fn show_inventory(ecs: &World, title: &str, s: &mut Screen) -> (ItemMenuResult, Option<Entity>) {
     let player_entity = ecs.fetch::<Entity>();
     let named = ecs.read_storage::<Named>();
     let backpacked = ecs.read_storage::<InBackpack>();
     let entities = ecs.entities();
-
-    let inventory = (&entities, &backpacked, &named)
-        .join()
-        .filter(|(_, itm, _)| itm.owner == *player_entity);
-    let num_items = inventory.clone().count() as i32;
-
-    let mut y = (25 - (num_items / 2)) as i32;
-    s.draw_box(IRect::new(15, y - 1, 31, num_items+2), WHITE, BLACK);
-    s.draw_text(18, y-2, YELLOW, BLACK, title);
-    s.draw_text(18, y + num_items + 1, YELLOW, BLACK, "ESCAPE to cancel");
 
     let (result, selection) = match get_last_key_pressed() {
         Some(KeyCode::Escape) => (ItemMenuResult::Cancel, -1),
@@ -85,16 +77,48 @@ pub fn show_inventory(ecs: &World, title: &str, s: &mut Screen) -> (ItemMenuResu
         None => (ItemMenuResult::NoResponse, -1),
     };
 
+    let mut items: SmallVec<[(Entity, &str); 64]> = 
+    (&entities, &backpacked, &named)
+        .join()
+        .filter(|(_, itm, _)| itm.owner == *player_entity)
+        .map(|(e, _, name)| (e, name.0.as_str()))
+        .collect();
+    items.sort_unstable_by_key(|(_, x)| *x);
+    let mut item_counts: SmallVec<[(usize, i32); 32]> = SmallVec::new();
+
+    if !items.is_empty() { item_counts.push((0, 1)); }
+    for i in 1..items.len() {
+        if items[i - 1].1 == items[i].1 {
+            item_counts.last_mut().unwrap().1 += 1;
+            continue;
+        }
+        item_counts.push((i, 1));
+    }
+
+    let num_entries = item_counts.len() as i32;
+    let mut y = (25 - (num_entries / 2)) as i32;
+    s.draw_box(IRect::new(15, y - 1, 31, num_entries+2), WHITE, BLACK);
+    s.draw_text(18, y-2, YELLOW, BLACK, title);
+    s.draw_text(18, y + num_entries + 1, YELLOW, BLACK, "ESCAPE to cancel");
+
     let mut selected_itm = None;
-
-    for (i, (entity, _, name)) in inventory.enumerate() {
-        s.draw_glyph(17, y, to_cp437('('), WHITE, BLACK);
+    let mut buf = [0u8; 64];
+    for (i, (idx, cnt)) in item_counts.iter().enumerate() {
+        let (entity, name) = items[*idx];
+        s.draw_glyph(17, y, to_cp437('['), WHITE, BLACK);
         s.draw_glyph(18, y, 97 + i as Glyph, WHITE, BLACK);
-        s.draw_glyph(19, y, to_cp437(')'), WHITE, BLACK);
+        s.draw_glyph(19, y, to_cp437(']'), WHITE, BLACK);
 
-        s.draw_text(21, y, WHITE, BLACK, &name.0);
+        let mut cursor = Cursor::new(&mut buf[..]);
+        write!(cursor, "{}", name).unwrap();
+        if *cnt > 1 {
+            write!(cursor, " ({})", *cnt).unwrap();
+        }
+        let cursor = cursor.position() as usize;
+        let text = std::str::from_utf8(&buf[..cursor]).unwrap();
+        s.draw_text(21, y, WHITE, BLACK, text);
+
         y += 1;
-
         if selection == i as i32 {
             selected_itm = Some(entity);
         }

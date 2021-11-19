@@ -108,6 +108,9 @@ impl BSPGen {
         self.room_idx -= 1;
         if self.room_idx == 0 {
             self.connect_rooms(0, self.split_queue.len() - 1);
+            let idx = self.split_queue.len() / 2;
+            let (x, y) = self.split_queue[idx].center();
+            *self.tiles.get_mut(x, y) = TileType::DownStairs;
             self.stage = Stage::Done;
         }
     }
