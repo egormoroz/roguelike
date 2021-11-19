@@ -1,6 +1,6 @@
 use macroquad::prelude::IVec2;
 use smallvec::SmallVec;
-use std::{collections::VecDeque, mem::take};
+use std::mem::take;
 use rand::{thread_rng, Rng, rngs::ThreadRng};
 use crate::alg::AStarPath;
 use super::*;
@@ -8,26 +8,37 @@ use super::*;
 #[derive(PartialEq, Eq)]
 enum Stage { Partition, TrimRooms, Corridors, Done }
 
+#[derive(Default, Clone, Copy)]
+struct Node {
+    rect: IRect,
+    children: Option<(usize, usize)>,
+    cp: (i32, i32),
+}
+
 pub struct BSPGen {
     tiles: Grid<TileType>,
-    split_queue: VecDeque<IRect>,
-    room_idx: usize,
     depth: i32,
     rng: ThreadRng,
     stage: Stage,
     pf_cache: AStarPath,
+
+    bsp_tree: Vec<Node>,
+    first_room: usize,
+    idx: usize,
 }
 
 impl BSPGen {
     pub fn new(width: i32, height: i32, depth: i32) -> Self {
         Self {
             tiles: Grid::new(width, height, TileType::Floor),
-            split_queue: [IRect::new(0, 0, width, height)].into(),
-            room_idx: 0,
             depth,
             rng: thread_rng(),
             stage: Stage::Partition,
             pf_cache: AStarPath::new(),
+
+            bsp_tree: vec![Node { rect: IRect::new(0, 0, width, height), ..Default::default() }],
+            idx: 0,
+            first_room: 0,
         }
     }
 
@@ -43,9 +54,9 @@ impl BSPGen {
         }
     }
 
-    fn connect_rooms(&mut self, idx1: usize, idx2: usize) {
-        let (fx, fy) = self.split_queue[idx1].center();
-        let (tx, ty) = self.split_queue[idx2].center();
+    fn connect_rooms(&mut self, idx1: usize, idx2: usize) -> (i32, i32) {
+        let (fx, fy) = self.bsp_tree[idx1].cp;
+        let (tx, ty) = self.bsp_tree[idx2].cp;
         let (from, to) = (IVec2::new(fx, fy), IVec2::new(tx, ty));
         let bounds = IRect::new(1, 1, self.tiles.width() - 1, self.tiles.height() - 1);
 
@@ -63,24 +74,32 @@ impl BSPGen {
         for (n, _) in self.pf_cache.result() {
             *self.tiles.get_mut(n.x, n.y) = TileType::Floor;
         }
+        let path = self.pf_cache.result();
+        if !path.is_empty() {
+            let n = path[path.len() / 2].0;
+            (n.x, n.y)
+        } else {
+            (fx, fy)
+        }
     }
 
     fn partition(&mut self) {
-        let r = self.split_queue.pop_front().unwrap();
-        if let Some((r1, r2)) = split(r, &mut self.rng) {
+        if let Some((r1, r2)) = split(self.bsp_tree[self.idx].rect, &mut self.rng) {
+            let n = self.bsp_tree.len();
+            self.bsp_tree[self.idx].children = Some((n, n + 1));
+            self.bsp_tree.push(Node { rect: r1, ..Default::default() });
+            self.bsp_tree.push(Node { rect: r2, ..Default::default() });
             self.create_walls(&r1);
             self.create_walls(&r2);
-            self.split_queue.push_back(r1);
-            self.split_queue.push_back(r2);
+            self.idx += 1;
         } else {
+            self.first_room = self.idx;
             self.stage = Stage::TrimRooms;
-            self.split_queue.push_front(r);
-            self.room_idx = 0;
         }
     }
 
     fn trim_rooms(&mut self) {
-        let mut rect = self.split_queue[self.room_idx];
+        let mut rect = self.bsp_tree[self.idx].rect;
         for y in rect.y..=rect.yy {
             for x in rect.x..=rect.xx {
                 *self.tiles.get_mut(x, y) = TileType::Wall;
@@ -88,7 +107,8 @@ impl BSPGen {
         }
 
         trim_rect(&mut rect, &mut self.rng);
-        self.split_queue[self.room_idx] = rect;
+        self.bsp_tree[self.idx].rect = rect;
+        self.bsp_tree[self.idx].cp = rect.center();
 
         for y in rect.y + 1..rect.yy {
             for x in rect.x + 1..rect.xx {
@@ -96,22 +116,24 @@ impl BSPGen {
             }
         }
 
-        self.room_idx += 1;
-        if self.room_idx >= self.split_queue.len() {
+        self.idx += 1;
+        if self.idx >= self.bsp_tree.len() {
             self.stage = Stage::Corridors;
-            self.room_idx = self.split_queue.len() - 1;
+            self.idx = self.first_room - 1;
         }
     }
 
     fn corridors(&mut self) {
-        self.connect_rooms(self.room_idx, self.room_idx - 1);
-        self.room_idx -= 1;
-        if self.room_idx == 0 {
-            self.connect_rooms(0, self.split_queue.len() - 1);
-            let idx = self.split_queue.len() / 2;
-            let (x, y) = self.split_queue[idx].center();
+        let (first, second) = self.bsp_tree[self.idx].children.unwrap();
+        self.bsp_tree[self.idx].cp = self.connect_rooms(first, second);
+        if self.idx == 0 {
+            // self.connect_rooms(0, self.split_queue.len() - 1);
+            let idx = (self.first_room + self.bsp_tree.len()) / 2;
+            let (x, y) = self.bsp_tree[idx].cp;
             *self.tiles.get_mut(x, y) = TileType::DownStairs;
             self.stage = Stage::Done;
+        } else {
+            self.idx -= 1;
         }
     }
 }
@@ -135,7 +157,8 @@ impl MapBuilder for BSPGen {
         let num_spawns = rng.gen_range(1..=MAX_DEPTH1_SPAWNS + self.depth);
         let mut spawn_points = Vec::with_capacity(num_spawns as usize);
 
-        for room in self.split_queue.iter().skip(1) {
+        for n in &self.bsp_tree[self.first_room + 1..] {
+            let room = n.rect;
             for _ in 1..=num_spawns {
                 loop {
                     let x = rng.gen_range(room.x + 1..room.xx);
@@ -154,7 +177,7 @@ impl MapBuilder for BSPGen {
     }
 
     fn player_pos(&self) -> IVec2 { 
-        let (x, y) = self.split_queue[0].center();
+        let (x, y) = self.bsp_tree[self.first_room].rect.center();
         IVec2::new(x, y)
     }
 
