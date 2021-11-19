@@ -43,6 +43,28 @@ impl BSPGen {
         }
     }
 
+    fn connect_rooms(&mut self, idx1: usize, idx2: usize) {
+        let (fx, fy) = self.split_queue[idx1].center();
+        let (tx, ty) = self.split_queue[idx2].center();
+        let (from, to) = (IVec2::new(fx, fy), IVec2::new(tx, ty));
+        let bounds = IRect::new(1, 1, self.tiles.width() - 1, self.tiles.height() - 1);
+
+        let mut successors = |n: IVec2| -> SmallVec<[(IVec2, f32); 8]>{
+            [(1, 0), (0, 1), (-1, 0), (0, -1)]
+                .into_iter()
+                .map(|(dx, dy)| (n.x + dx, n.y + dy))
+                .filter(|(x, y)| bounds.contains(*x, *y))
+                .map(|(x, y)| (IVec2::new(x, y), if self.tiles.get(x, y) == &TileType::Floor { 1. } else { 5. }))
+                .collect()
+        };
+        let mut heuristic = |a: IVec2, b: IVec2| (b.x - a.x + b.y - a.y).abs() as f32;
+        self.pf_cache.compute_generic(from, to, &mut heuristic, &mut successors);
+
+        for (n, _) in self.pf_cache.result() {
+            *self.tiles.get_mut(n.x, n.y) = TileType::Floor;
+        }
+    }
+
     fn partition(&mut self) {
         let r = self.split_queue.pop_front().unwrap();
         if let Some((r1, r2)) = split(r, &mut self.rng) {
@@ -77,33 +99,15 @@ impl BSPGen {
         self.room_idx += 1;
         if self.room_idx >= self.split_queue.len() {
             self.stage = Stage::Corridors;
-            self.room_idx = 1;
+            self.room_idx = self.split_queue.len() - 1;
         }
     }
 
     fn corridors(&mut self) {
-        let (fx, fy) = self.split_queue[self.room_idx - 1].center();
-        let (tx, ty) = self.split_queue[self.room_idx].center();
-        let (from, to) = (IVec2::new(fx, fy), IVec2::new(tx, ty));
-        let bounds = IRect::new(1, 1, self.tiles.width() - 1, self.tiles.height() - 1);
-
-        let mut successors = |n: IVec2| -> SmallVec<[(IVec2, f32); 8]>{
-            [(1, 0), (0, 1), (-1, 0), (0, -1)]
-                .into_iter()
-                .map(|(dx, dy)| (n.x + dx, n.y + dy))
-                .filter(|(x, y)| bounds.contains(*x, *y))
-                .map(|(x, y)| (IVec2::new(x, y), if self.tiles.get(x, y) == &TileType::Floor { 1. } else { 5. }))
-                .collect()
-        };
-        let mut heuristic = |a: IVec2, b: IVec2| (b.x - a.x + b.y - a.y).abs() as f32;
-        self.pf_cache.compute_generic(from, to, &mut heuristic, &mut successors);
-
-        for (n, _) in self.pf_cache.result() {
-            *self.tiles.get_mut(n.x, n.y) = TileType::Floor;
-        }
-
-        self.room_idx += 1;
-        if self.room_idx >= self.split_queue.len() {
+        self.connect_rooms(self.room_idx, self.room_idx - 1);
+        self.room_idx -= 1;
+        if self.room_idx == 0 {
+            self.connect_rooms(0, self.split_queue.len() - 1);
             self.stage = Stage::Done;
         }
     }
@@ -158,7 +162,7 @@ impl MapBuilder for BSPGen {
     fn build(&mut self) -> Map { Map::from_grid(take(&mut self.tiles), self.depth) }
 }
 
-const MIN_SIZE: i32 = 9;
+const MIN_SIZE: i32 = 7;
 
 fn split<R: Rng>(r: IRect, rng: &mut R) -> Option<(IRect, IRect)> {
     let roll = rng.gen_bool(sigmoid(r.width() as f64 / r.height() as f64 - 1.));
