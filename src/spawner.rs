@@ -69,7 +69,7 @@ impl Spawner {
         use SpawnOption::*;
         let d = self.depth;
         let weights = [
-            (Goblin, 100), (Orc, 1 + d),
+            (Goblin, 10), (Orc, 1 + d),
             (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
             (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
             (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10),

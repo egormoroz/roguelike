@@ -14,6 +14,7 @@ specs-derive = "*"
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
 rand = "*"
+simdnoise = "*"
 
 # [profile.dev]
 # opt-level = 1

@@ -7,6 +7,7 @@ use super::{
     util::{
         IRect,
         Grid,
+        adjacent
     },
     alg::BaseMap,
 };
@@ -110,9 +111,7 @@ impl Map {
     }
 
     pub fn adjacent(&self, x: i32, y: i32) -> impl Iterator<Item = (i32, i32)> + '_ {
-        [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
-            .into_iter()
-            .map(move |(dx, dy)| (x + dx, y + dy))
+        adjacent(x, y)
             .filter(|(x, y)| self.is_exit_valid(*x, *y))
     }
 }

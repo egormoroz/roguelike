@@ -1,4 +1,4 @@
-use macroquad::prelude::IVec2;
+use macroquad::prelude::IVec2;
 use specs::prelude::*;
 use crate::{
     util::DjMap, 
@@ -29,10 +29,11 @@ impl<'a> System<'a> for DjMapUpdateSystem {
             .filter(|(x, y)| map.tile(*x, *y) == &TileType::Floor 
                 && g.bounds().contains(*x, *y))
             .collect();
-        self.bfs.search((plp.x, plp.y), &mut *dj_map, 
+        let sources = [(plp.x, plp.y)];
+        self.bfs.search(sources.into_iter(), &mut *dj_map, 
             |g, (x, y), c| g.set(*x, *y, c), 
             |g, (x, y)| g.get(*x, *y),
-            adjacent
+            adjacent,
         );
     }
 }

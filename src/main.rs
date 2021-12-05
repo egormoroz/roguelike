@@ -5,6 +5,7 @@ extern crate rand;
 extern crate specs;
 extern crate specs_derive;
 extern crate serde;
+extern crate simdnoise;
 
 pub mod alg;
 pub mod util;
@@ -47,3 +48,4 @@ async fn main() {
         next_frame().await
     }
 }
+

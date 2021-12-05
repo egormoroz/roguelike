@@ -8,9 +8,11 @@ use crate::{
 
 mod simple;
 mod bsp;
+mod cellular;
 
 pub use simple::*;
 pub use bsp::*;
+pub use cellular::*;
 
 const FLAGS: TileFlags = TileFlags {
     visible: true,

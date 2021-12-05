@@ -15,6 +15,11 @@ impl IRect {
         }
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (i32, i32)> {
+        let (x, y, xx, yy) = (self.x, self.y, self.xx, self.yy);
+        (y..=yy).flat_map(move |y| (x..=xx).map(move |x| (x, y)))
+    }
+
     pub fn width(&self) -> i32 { self.xx - self.x + 1 }
     pub fn height(&self) -> i32 { self.yy - self.y + 1 }
 
@@ -45,3 +50,4 @@ impl IRect {
         ((self.x + self.xx) / 2, (self.y + self.yy) / 2)
     }
 }
+

@@ -3,7 +3,7 @@ mod irect;
 mod gamelog;
 mod grid;
 mod djmap;
-pub mod colors;
+pub mod colors;
 
 
 pub use cp437::*;
@@ -26,3 +26,11 @@ pub fn letter_to_option(kc: KeyCode) -> i32 {
 
 #[derive(Default, Clone, Copy)]
 pub struct DeltaTime(pub f32);
+
+
+pub fn adjacent(x: i32, y: i32) -> impl Iterator<Item = (i32, i32)> {
+    [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+        .into_iter()
+        .map(move |(dx, dy)| (x + dx, y + dy))
+}
+

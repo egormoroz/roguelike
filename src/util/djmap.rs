@@ -1,21 +1,15 @@
 use crate::util::{
     Grid,
     IRect,
+    adjacent
 };
 
 
-//TODO: Update lazily!!!
 pub struct DjMap {
     map: Grid<i32>,
     bounds: IRect,
     plp: Option<(i32, i32)>,
 }
-
-const OFFSETS: [(i32, i32); 8] = [
-    (-1, -1), (0, -1), (1, -1),
-    (-1, 0), (1, 0),
-    (-1, 1), (0, 1), (1, 1),
-];
 
 impl DjMap {
     pub fn new(width: i32, height: i32) -> Self {
@@ -61,9 +55,7 @@ impl DjMap {
     }
 
     pub fn adjacent(&self, x: i32, y: i32) -> impl Iterator<Item = (i32, i32, i32)>  + '_ {
-        OFFSETS
-            .iter()
-            .map(move |(dx, dy)| (x + dx, y + dy))
+        adjacent(x, y)
             .filter(|(x, y)| self.bounds.contains(*x, *y) 
                 && self.get(*x, *y) >= 0)
             .map(|(x, y)| (x, y, self.get(x, y)))
