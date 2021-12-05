@@ -11,6 +11,7 @@ use crate::{
 pub struct VisibilitySystem;
 
 impl<'a> System<'a> for VisibilitySystem {
+    #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
         WriteExpect<'a, Map>,

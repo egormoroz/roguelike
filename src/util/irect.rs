@@ -23,6 +23,19 @@ impl IRect {
             && self.y <= other.yy && self.yy >= other.y
     }
 
+    pub fn intersection(&self, other: &IRect) -> Option<IRect> {
+        if self.overlaps(other) {
+            Some(IRect {
+                x: self.x.max(other.x),
+                y: self.y.max(other.y),
+                xx: self.xx.min(other.xx),
+                yy: self.yy.min(other.yy),
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn contains(&self, x: i32, y: i32) -> bool {
         self.x <= x && self.y <= y 
             && x <= self.xx && y <= self.yy

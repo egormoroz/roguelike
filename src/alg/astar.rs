@@ -23,7 +23,7 @@ impl Ord for Step {
 
 impl PartialOrd for Step {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
@@ -128,3 +128,4 @@ impl AStarPath {
         &self.path[..]
     }
 }
+

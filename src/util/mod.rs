@@ -2,13 +2,15 @@ mod cp437;
 mod irect;
 mod gamelog;
 mod grid;
-pub mod colors;
+mod djmap;
+pub mod colors;
 
 
 pub use cp437::*;
 pub use irect::*;
 pub use gamelog::*;
 pub use grid::*;
+pub use djmap::*;
 
 use macroquad::prelude::KeyCode;
 

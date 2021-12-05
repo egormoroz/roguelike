@@ -3,22 +3,20 @@ use specs::prelude::*;
 
 use crate::{
     comp::*, 
-    map::Map, 
-    util::{IRect, to_cp437, colors::*},
+    map::{Map, ViewMap}, 
+    util::{IRect, to_cp437, colors::*, DjMap},
     state::RunState,
-    alg::AStarPath,
     systems::ParticleBuilder,
 };
 
 #[derive(Default)]
-pub struct MonsterAI {
-    pf_cache: AStarPath,
-}
+pub struct MonsterAI;
 
 impl<'a> System<'a> for MonsterAI {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
+        ReadExpect<'a, DjMap>,
         ReadExpect<'a, Entity>,
         ReadExpect<'a, IVec2>,
         ReadExpect<'a, RunState>,
@@ -33,7 +31,7 @@ impl<'a> System<'a> for MonsterAI {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (entities, player, plp, state,
+        let (entities, dj_map, player, plp, state,
             mut map, mut particle_builder, monster, 
             mut confused, mut viewshed, mut pos, 
             mut wants_to_melee, mut entity_moved) = data;
@@ -58,13 +56,18 @@ impl<'a> System<'a> for MonsterAI {
                     wants_to_melee.insert(entity, WantsToMelee { target: *player }).unwrap();
                     continue;
                 }
+                let dst = |x: i32, y: i32| (x - plp.x) * (x - plp.x) 
+                    + (y - plp.y) * (y - plp.y);
 
-                self.pf_cache.compute(&*map, (*pos).into(), *plp);
-                let step = self.pf_cache.result().iter().rev().skip(1).next();
-                if let Some((step, _)) = step.cloned() {
+                let step = dj_map.adjacent(pos.x, pos.y)
+                    .filter(|(x, y, _)| !map.tile_flags(*x, *y).blocked)
+                    .min_by(|(x1, y1, d1), (x2, y2, d2)| d1.cmp(d2)
+                        .then(dst(*x1, *y1).cmp(&dst(*x2, *y2))));
+
+                if let Some((x, y, _)) = step {
                     map.tile_flags_mut(pos.x, pos.y).blocked = false;
-                    map.tile_flags_mut(step.x, step.y).blocked = true;
-                    *pos = step.into();
+                    map.tile_flags_mut(x, y).blocked = true;
+                    pos.x = x; pos.y = y;
                     viewshed.dirty = true;
                     entity_moved.insert(entity, EntityMoved {}).expect("failed to insert EntityMoved");
                 }
@@ -72,3 +75,4 @@ impl<'a> System<'a> for MonsterAI {
         }
     }
 }
+

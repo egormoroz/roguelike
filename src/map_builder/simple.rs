@@ -56,7 +56,7 @@ impl MapBuilder for SimpleBuilder {
         let y = rng.gen_range(2..self.tiles.height() - 2 - h);
 
         let new_room = IRect::new(x, y, w, h);
-        if self.rooms.iter().find(|&r| r.overlaps(&new_room)).is_none() {
+        if self.rooms.iter().any(|&r| r.overlaps(&new_room)) {
             self.create_room(&new_room);
             if let Some(prev) = self.rooms.last() {
                 let ((x, y), (xx, yy)) = (prev.center(), new_room.center());

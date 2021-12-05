@@ -69,7 +69,7 @@ impl Spawner {
         use SpawnOption::*;
         let d = self.depth;
         let weights = [
-            (Goblin, 10), (Orc, 1 + d),
+            (Goblin, 100), (Orc, 1 + d),
             (HealthPotion, 7), (FireballScroll, 2 + d), (ConfusionScroll, 2 + d),
             (MagicMissileScroll, 4), (Dagger, 3), (Shield, 3),
             (LongSword, d - 1), (TowerShield, d - 1), (Rations, 10),
@@ -92,7 +92,7 @@ pub fn player(ecs: &mut World, x: i32, y: i32) -> Entity {
         .with(Viewshed { range: 8, visible_tiles: smallvec![], dirty: true })
         .with(Player{})
         .with(Named("Player".to_owned()))
-        .with(CombatStats{ max_hp: 30, hp: 30, defense: 2, power: 5 })
+        .with(CombatStats{ max_hp: 30, hp: 30, defense: 20, power: 5 })
         .with(HungerClock { state: HungerState::WellFed, duration: 20 })
         .marked::<SimpleMarker<SerializeMe>>()
         .build()
@@ -315,3 +315,4 @@ fn bear_trap(ecs: &mut World, x: i32, y: i32) {
         .marked::<SimpleMarker<SerializeMe>>()
         .build();
 }
+

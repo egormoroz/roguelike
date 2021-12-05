@@ -58,9 +58,9 @@ pub struct Position {
     pub y: i32,
 }
 
-impl Into<IVec2> for Position {
-    fn into(self) -> IVec2 {
-        IVec2::new(self.x, self.y)
+impl From<Position> for IVec2 {
+    fn from(p: Position) -> Self {
+        Self::new(p.x, p.y)
     }
 }
 
@@ -263,6 +263,7 @@ pub struct EntityMoved {}
 #[derive(Component, Default, Serialize, Deserialize, Clone, Copy)]
 #[storage(NullStorage)]
 pub struct SingleActivation {}
+
 
 
 pub struct SerializeMe {}

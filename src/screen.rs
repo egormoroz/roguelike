@@ -6,6 +6,7 @@ use super::util::{
     IRect,
     Glyph,
     Grid,
+    DjMap,
 };
 
 
@@ -29,7 +30,6 @@ impl Screen {
     pub fn new(scr_width: i32, scr_height: i32, texture: Texture2D,
                cols: u8, rows: u8, scale: Vec2) -> Self 
     {
-
         let glyph_size = Vec2::new(texture.width() / cols as f32, texture.height() / rows as f32);
         Self {
             buffer: Grid::new(scr_width, scr_height, Cell::default()),
@@ -127,9 +127,31 @@ impl Screen {
         }
     }
 
+    pub fn draw_djmap(&mut self, dm: &DjMap) {
+        let center_color = Vec3::new(1., 0., 0.);
+        let border_color = Vec3::new(0., 0., 1.);
+        let bounds = dm.bounds().intersection(
+            &IRect::new(0, 0, self.buffer.width(), self.buffer.height())
+        ).unwrap();
+        let max = dm.iter().max();
+        if max.is_none() { return; }
+        let max = *max.unwrap();
+
+        for y in bounds.y..=bounds.yy {
+            for x in bounds.x..=bounds.xx {
+                let d = dm.get(x, y);
+                if d < 0 { continue; }
+                let p = d as f32 / max as f32;
+                let rgb =  p * (border_color - center_color) + center_color;
+                self.set_bg(x, y, [rgb.x, rgb.y, rgb.z, 1.]);
+            }
+        }
+    }
+
     fn get_rect(&self, n: u8) -> Rect {
         let offset = Vec2::new((n % self.cols) as f32, (n / self.cols) as f32);
         Rect::new(0., 0., self.glyph_size.x, self.glyph_size.y)
             .offset(offset * self.glyph_size)
     }
 }
+

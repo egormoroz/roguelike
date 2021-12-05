@@ -1,8 +1,10 @@
-mod pf;
+mod astar;
 mod fov;
+mod bfs;
 
-pub use pf::*;
+pub use astar::*;
 pub use fov::*;
+pub use bfs::*;
 
 use macroquad::prelude::IVec2;
 use smallvec::SmallVec;

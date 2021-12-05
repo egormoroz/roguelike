@@ -42,6 +42,7 @@ pub struct State {
     screen: Screen,
     spawner: Spawner,
     ecs: World,
+    dj_system: DjMapUpdateSystem,
     ai_system: MonsterAI,
     item_use_system: ItemUseSystem,
     particle_system: ParticleSystem,
@@ -63,19 +64,23 @@ impl State {
         ecs.insert(GameLog::default());
         ecs.insert(ParticleBuilder::default());
         ecs.insert(DeltaTime::default());
+        ecs.insert(DjMap::new(40, 40));
 
         Self { 
-            screen, ecs, ai_system: MonsterAI::default(),
+            screen, ecs, 
+            dj_system: DjMapUpdateSystem::default(),
+            ai_system: MonsterAI::default(),
             item_use_system: ItemUseSystem::default(),
             particle_system: ParticleSystem::default(),
             sorted_drawables: vec![],
             spawner: Spawner::new(1),
             map_builder: None,
-            mapgen_timer: 0.
+            mapgen_timer: 0.,
         }
     }
 
     fn run_systems(&mut self) {
+        self.dj_system.run_now(&self.ecs);
         VisibilitySystem.run_now(&self.ecs);
         self.ai_system.run_now(&self.ecs);
         MapIndexingSystem.run_now(&self.ecs);
@@ -110,6 +115,8 @@ impl State {
 
         let map = self.ecs.fetch::<Map>();
         draw_map(&*map, &mut self.screen);
+        let dm = self.ecs.fetch::<DjMap>();
+        self.screen.draw_djmap(&*dm);
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
@@ -280,3 +287,4 @@ impl State {
         }
     }
 }
+

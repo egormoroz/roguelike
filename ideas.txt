@@ -1,0 +1,4 @@
+Add an ability for monsters to remember player's last location:
+- If such a monster sees player pf according to dijkstra map
+- If it doesn't - pf according to A* to last seen
+

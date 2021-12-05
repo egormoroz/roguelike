@@ -94,7 +94,7 @@ impl Map {
     }
 
     pub fn tile_content(&self, x: i32, y: i32) -> &[Entity] {
-        &self.tile_content.get(x, y)
+        self.tile_content.get(x, y)
     }
 
     pub fn tile_content_mut(&mut self, x: i32, y: i32) -> &mut Vec<Entity> {
@@ -105,8 +105,15 @@ impl Map {
         self.depth
     }
     
-    fn is_exit_valid(&self, x: i32, y: i32) -> bool {
+    pub fn is_exit_valid(&self, x: i32, y: i32) -> bool {
         self.bounds().contains(x, y) && !self.tile_flags(x, y).blocked
+    }
+
+    pub fn adjacent(&self, x: i32, y: i32) -> impl Iterator<Item = (i32, i32)> + '_ {
+        [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
+            .into_iter()
+            .map(move |(dx, dy)| (x + dx, y + dy))
+            .filter(|(x, y)| self.is_exit_valid(*x, *y))
     }
 }
 
@@ -134,11 +141,9 @@ impl BaseMap for Map {
     }
 
     fn successors(&self, pos: IVec2) -> SmallVec<[(IVec2, f32); 8]> {
-        use std::f32::consts::SQRT_2;
-        [(0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1)]
-            .into_iter()
-            .map(|(dx, dy)| (pos + IVec2::new(dx, dy), if dx * dy == 0 { 1.0 } else { SQRT_2 }))
-            .filter(|(pos, _)| self.is_exit_valid(pos.x, pos.y))
+        self.adjacent(pos.x, pos.y)
+            .map(|(x, y)| (IVec2::new(x, y), 1.))
             .collect()
     }
 }
+
