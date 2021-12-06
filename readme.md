@@ -1,12 +1,14 @@
 # A simple roguelike
 ## Currently has:
-- Hardcoded map with ability to go deeper (unlimited depth)
+- Step-by-step map generation (BSP, Cellular automata)
+- Unlimited levels (so far the only difference is spawn rates)
 - Field of view
 - Crappy UI
-- Healing potions, magic scrolls, gear, food
+- Gear, scrolls, food, healing potions
 - Orcs and goblins
 - Random spawning using spawn tables
 - Simple hunger system
 - Simple visual effects
 - Traps
 - Save/load 
+
